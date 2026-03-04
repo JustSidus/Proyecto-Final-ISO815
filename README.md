@@ -1,4 +1,4 @@
-# Sistema de Compras — UNAPEC
+# Sistema de Compras - UNAPEC
 
 Proyecto final de asignatura Compras e interfaz con Contabilidad. Desarrollado en Django 6.0.3 con API REST.
 
@@ -6,8 +6,8 @@ Proyecto final de asignatura Compras e interfaz con Contabilidad. Desarrollado e
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/JustSidus/Proyecto-Final-ISO810.git
-cd Proyecto-Final-ISO810
+git clone https://github.com/JustSidus/Proyecto-Final-ISO815.git
+cd Proyecto-Final-ISO815
 
 # 2. Crear y activar el entorno virtual
 python -m venv venv
