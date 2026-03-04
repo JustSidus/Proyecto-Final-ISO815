@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ accion }} Orden de Compra{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3">
+  <h2 class="h4 fw-bold mb-0">
+    <i class="bi bi-file-earmark-text me-2 text-info"></i>{{ accion }} Orden de Compra
+    {% if orden %}<small class="text-muted">(OC-{{ orden.pk|stringformat:"05d" }})</small>{% endif %}
+  </h2>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+
+  <!-- Cabecera de la Orden -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white"><h6 class="mb-0">Datos de la Orden</h6></div>
+    <div class="card-body">
+      <div class="row g-3">
+        {% for field in form %}
+        <div class="col-md-4">
+          <label for="{{ field.id_for_label }}" class="form-label fw-semibold">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Líneas de detalle -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+      <h6 class="mb-0">Líneas de Detalle</h6>
+      <button type="button" class="btn btn-sm btn-light" id="add-detalle">
+        <i class="bi bi-plus"></i> Agregar línea
+      </button>
+    </div>
+    <div class="card-body p-0">
+      {{ formset.management_form }}
+      <div class="table-responsive">
+        <table class="table mb-0" id="formset-table">
+          <thead class="table-light">
+            <tr>
+              <th>Artículo</th>
+              <th>Cantidad</th>
+              <th>Unidad de Medida</th>
+              <th>Costo Unitario</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="formset-body">
+            {% for detalle_form in formset %}
+            <tr class="formset-row">
+              <td>{{ detalle_form.articulo }}</td>
+              <td>{{ detalle_form.cantidad }}</td>
+              <td>{{ detalle_form.unidad_medida }}</td>
+              <td>{{ detalle_form.costo_unitario }}</td>
+              <td>
+                {% if detalle_form.instance.pk %}
+                  <div class="form-check">
+                    {{ detalle_form.DELETE }}
+                    <label class="form-check-label text-danger small">Eliminar</label>
+                  </div>
+                {% endif %}
+                {{ detalle_form.id }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 justify-content-end">
+    <a href="{% url 'compras:orden-list' %}" class="btn btn-outline-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-info text-white">
+      <i class="bi bi-save me-1"></i>Guardar Orden
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Agregar nueva fila en el formset dinámicamente
+  document.getElementById('add-detalle').addEventListener('click', function () {
+    const totalForms = document.getElementById('id_detalles-TOTAL_FORMS');
+    const formCount = parseInt(totalForms.value);
+    const body = document.getElementById('formset-body');
+    const firstRow = body.querySelector('.formset-row');
+    if (!firstRow) return;
+
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelectorAll('input, select').forEach(el => {
+      el.name = el.name.replace(/-\d+-/, `-${formCount}-`);
+      el.id = el.id.replace(/-\d+-/, `-${formCount}-`);
+      if (el.tagName === 'INPUT') el.value = '';
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    });
+    body.appendChild(newRow);
+    totalForms.value = formCount + 1;
+  });
+</script>
+{% endblock %}

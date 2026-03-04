@@ -1,0 +1,72 @@
+/* ============================================================
+   Sistema de Compras — UNAPEC
+   Estilos personalizados (complementan Bootstrap 5)
+   ============================================================ */
+
+/* Tipografía general */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa;
+}
+
+/* Navbar */
+.navbar-brand {
+  letter-spacing: 0.05em;
+}
+
+/* Tarjetas con hover */
+.card {
+  transition: box-shadow 0.2s ease;
+}
+.card:hover {
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Tabla → filas con mejor spacing */
+.table td,
+.table th {
+  vertical-align: middle;
+}
+
+/* Footer pegado al fondo de la ventana */
+html,
+body {
+  height: 100%;
+}
+body {
+  display: flex;
+  flex-direction: column;
+}
+main {
+  flex: 1 0 auto;
+}
+footer {
+  flex-shrink: 0;
+}
+
+/* Badge más legible */
+.badge {
+  font-size: 0.75rem;
+  padding: 0.35em 0.65em;
+}
+
+/* Botones de acción en tablas */
+.table .btn-sm {
+  padding: 0.2rem 0.45rem;
+}
+
+/* Formularios */
+.form-control:focus,
+.form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.2);
+}
+
+/* Formset de detalles de órden */
+#formset-table td {
+  padding: 0.4rem 0.6rem;
+}
+#formset-table select,
+#formset-table input {
+  min-width: 120px;
+}

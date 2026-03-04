@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Artículos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="h4 fw-bold mb-0"><i class="bi bi-box-seam me-2 text-warning"></i>Artículos</h2>
+  <a href="{% url 'compras:articulo-create' %}" class="btn btn-warning text-white">
+    <i class="bi bi-plus-circle me-1"></i>Nuevo Artículo
+  </a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Descripción</th>
+            <th>Marca</th>
+            <th>Unidad de Medida</th>
+            <th class="text-end">Existencia</th>
+            <th class="text-center">Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in articulos %}
+          <tr>
+            <td>{{ a.id }}</td>
+            <td>{{ a.descripcion }}</td>
+            <td>{{ a.marca }}</td>
+            <td>{{ a.unidad_medida }}</td>
+            <td class="text-end">{{ a.existencia }}</td>
+            <td class="text-center">
+              {% if a.estado %}<span class="badge bg-success">Activo</span>
+              {% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{% url 'compras:articulo-update' a.pk %}" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <a href="{% url 'compras:articulo-delete' a.pk %}" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No hay artículos registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

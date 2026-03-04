@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <h1 class="h3 fw-bold text-primary">
+      <i class="bi bi-house-door me-2"></i>Panel Principal
+    </h1>
+    <p class="text-muted">Sistema de Compras e Interfaz con Contabilidad — UNAPEC</p>
+  </div>
+</div>
+
+<!-- Tarjetas de resumen -->
+<div class="row g-4 mb-5">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-3 bg-primary bg-opacity-10 p-3">
+          <i class="bi bi-building fs-3 text-primary"></i>
+        </div>
+        <div>
+          <div class="fs-2 fw-bold">{{ total_departamentos }}</div>
+          <div class="text-muted small">Departamentos activos</div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{% url 'compras:departamento-list' %}" class="btn btn-sm btn-outline-primary w-100">Ver todos</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-3 bg-success bg-opacity-10 p-3">
+          <i class="bi bi-truck fs-3 text-success"></i>
+        </div>
+        <div>
+          <div class="fs-2 fw-bold">{{ total_proveedores }}</div>
+          <div class="text-muted small">Proveedores activos</div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{% url 'compras:proveedor-list' %}" class="btn btn-sm btn-outline-success w-100">Ver todos</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-3 bg-warning bg-opacity-10 p-3">
+          <i class="bi bi-box-seam fs-3 text-warning"></i>
+        </div>
+        <div>
+          <div class="fs-2 fw-bold">{{ total_articulos }}</div>
+          <div class="text-muted small">Artículos activos</div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{% url 'compras:articulo-list' %}" class="btn btn-sm btn-outline-warning w-100">Ver todos</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-3 bg-info bg-opacity-10 p-3">
+          <i class="bi bi-file-earmark-text fs-3 text-info"></i>
+        </div>
+        <div>
+          <div class="fs-2 fw-bold">{{ total_ordenes }}</div>
+          <div class="text-muted small">Órdenes en total</div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{% url 'compras:orden-list' %}" class="btn btn-sm btn-outline-info w-100">Ver todas</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Accesos rápidos -->
+<div class="row g-3">
+  <div class="col-12">
+    <h5 class="fw-semibold text-secondary">Accesos rápidos</h5>
+  </div>
+  <div class="col-auto">
+    <a href="{% url 'compras:orden-create' %}" class="btn btn-primary">
+      <i class="bi bi-plus-circle me-1"></i>Nueva Orden de Compra
+    </a>
+  </div>
+  <div class="col-auto">
+    <a href="{% url 'compras:consulta-ordenes' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-search me-1"></i>Consultar Órdenes
+    </a>
+  </div>
+  <div class="col-auto">
+    <a href="/api/asientos/" class="btn btn-outline-dark" target="_blank">
+      <i class="bi bi-braces me-1"></i>API Asientos Contables
+    </a>
+  </div>
+</div>
+{% endblock %}
