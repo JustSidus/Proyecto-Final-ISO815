@@ -1,4 +1,14 @@
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.db.models import Value
+from django.db.models.functions import Replace
+
+from .validators import (
+    formatear_documento_dominicano,
+    limpiar_documento,
+    validar_cedula_dominicana,
+    validar_rnc_dominicano,
+)
 
 
 class Departamento(models.Model):
@@ -28,8 +38,23 @@ class UnidadMedida(models.Model):
 
 
 class Proveedor(models.Model):
+    TIPO_CEDULA = 'CED'
+    TIPO_RNC = 'RNC'
+    TIPO_DOCUMENTO_CHOICES = [
+        (TIPO_CEDULA, 'Cédula'),
+        (TIPO_RNC, 'RNC'),
+    ]
+
+    tipo_documento = models.CharField(
+        max_length=3,
+        choices=TIPO_DOCUMENTO_CHOICES,
+        default=TIPO_RNC,
+        verbose_name='Tipo de Documento',
+    )
     cedula_rnc = models.CharField(
-        max_length=15, unique=True, verbose_name='Cédula / RNC'
+        max_length=13,
+        unique=True,
+        verbose_name='Documento',
     )
     nombre_comercial = models.CharField(max_length=150, verbose_name='Nombre Comercial')
     estado = models.BooleanField(default=True, verbose_name='Activo')
@@ -39,8 +64,41 @@ class Proveedor(models.Model):
         verbose_name_plural = 'Proveedores'
         ordering = ['nombre_comercial']
 
+    def _normalizar_documento(self):
+        documento_limpio = limpiar_documento(self.cedula_rnc)
+
+        if self.tipo_documento == self.TIPO_CEDULA:
+            documento_limpio = validar_cedula_dominicana(documento_limpio)
+        elif self.tipo_documento == self.TIPO_RNC:
+            documento_limpio = validar_rnc_dominicano(documento_limpio)
+        else:
+            raise ValidationError({'tipo_documento': 'Tipo de documento no válido.'})
+
+        existe_documento = (
+            Proveedor.objects
+            .exclude(pk=self.pk)
+            .annotate(documento_limpio=Replace('cedula_rnc', Value('-'), Value('')))
+            .filter(documento_limpio=documento_limpio)
+            .exists()
+        )
+        if existe_documento:
+            raise ValidationError({'cedula_rnc': 'Ya existe un proveedor con este documento.'})
+
+        self.cedula_rnc = formatear_documento_dominicano(self.tipo_documento, documento_limpio)
+
+    def clean(self):
+        self._normalizar_documento()
+
+    def save(self, *args, **kwargs):
+        self._normalizar_documento()
+        return super().save(*args, **kwargs)
+
+    @property
+    def documento_formateado(self):
+        return formatear_documento_dominicano(self.tipo_documento, self.cedula_rnc)
+
     def __str__(self):
-        return f'{self.nombre_comercial} ({self.cedula_rnc})'
+        return f'{self.nombre_comercial} ({self.documento_formateado})'
 
 
 class Articulo(models.Model):
@@ -52,8 +110,13 @@ class Articulo(models.Model):
         verbose_name='Unidad de Medida',
         related_name='articulos',
     )
-    existencia = models.DecimalField(
-        max_digits=10, decimal_places=2, default=0, verbose_name='Existencia'
+    existencia = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Existencia',
+    )
+    cantidad_retenida = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Cantidad en Hold',
     )
     estado = models.BooleanField(default=True, verbose_name='Activo')
 
@@ -62,17 +125,23 @@ class Articulo(models.Model):
         verbose_name_plural = 'Artículos'
         ordering = ['descripcion']
 
+    @property
+    def disponible(self):
+        return max(self.existencia - self.cantidad_retenida, 0)
+
     def __str__(self):
-        return f'{self.descripcion} — {self.marca}'
+        return f'{self.descripcion} - {self.marca}'
 
 
 class OrdenCompra(models.Model):
     ESTADO_PENDIENTE = 'PE'
     ESTADO_APROBADA = 'AP'
+    ESTADO_COMPLETADA = 'CO'
     ESTADO_RECHAZADA = 'RE'
     ESTADO_CHOICES = [
         (ESTADO_PENDIENTE, 'Pendiente'),
         (ESTADO_APROBADA, 'Aprobada'),
+        (ESTADO_COMPLETADA, 'Completada'),
         (ESTADO_RECHAZADA, 'Rechazada'),
     ]
 
@@ -120,8 +189,8 @@ class OrdenCompraDetalle(models.Model):
         on_delete=models.PROTECT,
         verbose_name='Artículo',
     )
-    cantidad = models.DecimalField(
-        max_digits=10, decimal_places=2, verbose_name='Cantidad'
+    cantidad = models.PositiveIntegerField(
+        verbose_name='Cantidad'
     )
     unidad_medida = models.ForeignKey(
         UnidadMedida,

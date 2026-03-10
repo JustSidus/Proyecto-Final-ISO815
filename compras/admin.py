@@ -29,15 +29,24 @@ class UnidadMedidaAdmin(admin.ModelAdmin):
 
 @admin.register(Proveedor)
 class ProveedorAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cedula_rnc', 'nombre_comercial', 'estado')
-    list_filter = ('estado',)
+    list_display = ('id', 'tipo_documento', 'cedula_rnc', 'nombre_comercial', 'estado')
+    list_filter = ('tipo_documento', 'estado')
     search_fields = ('cedula_rnc', 'nombre_comercial')
     list_editable = ('estado',)
 
 
 @admin.register(Articulo)
 class ArticuloAdmin(admin.ModelAdmin):
-    list_display = ('id', 'descripcion', 'marca', 'unidad_medida', 'existencia', 'estado')
+    list_display = (
+        'id',
+        'descripcion',
+        'marca',
+        'unidad_medida',
+        'existencia',
+        'cantidad_retenida',
+        'disponible',
+        'estado',
+    )
     list_filter = ('estado', 'unidad_medida')
     search_fields = ('descripcion', 'marca')
     list_editable = ('estado',)

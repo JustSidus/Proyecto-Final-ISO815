@@ -20,6 +20,7 @@
                   <label class="form-check-label" for="{{ field.id_for_label }}">Activo</label>
                 </div>
               {% else %}{{ field }}{% endif %}
+              {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
               {% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>{% endif %}
             </div>
           {% endfor %}
@@ -32,4 +33,143 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const tipoDocumento = document.getElementById('id_tipo_documento');
+    const documento = document.getElementById('id_cedula_rnc');
+    const documentoLabel = document.querySelector('label[for="id_cedula_rnc"]');
+    if (!tipoDocumento || !documento) return;
+
+    const CONFIG = {
+      CED: {
+        label: 'Cédula',
+        placeholder: '000-0000000-0',
+        pattern: '^\\d{3}-\\d{7}-\\d$',
+        maxDigits: 11,
+        maxLength: 13,
+        title: 'Ingresa una cédula válida (11 dígitos, algoritmo de Luhn).',
+      },
+      RNC: {
+        label: 'RNC',
+        placeholder: '000-000000',
+        pattern: '^\\d{3}-\\d{6}$',
+        maxDigits: 9,
+        maxLength: 10,
+        title: 'Ingresa un RNC válido (9 dígitos).',
+      },
+    };
+
+    function obtenerTipoActual() {
+      return tipoDocumento.value === 'CED' ? 'CED' : 'RNC';
+    }
+
+    function soloDigitos(valor) {
+      return (valor || '').replace(/\D/g, '');
+    }
+
+    function formatearValor(tipo, digitos) {
+      if (tipo === 'CED') {
+        const valor = digitos.slice(0, CONFIG.CED.maxDigits);
+        if (valor.length <= 3) return valor;
+        if (valor.length <= 10) return `${valor.slice(0, 3)}-${valor.slice(3)}`;
+        return `${valor.slice(0, 3)}-${valor.slice(3, 10)}-${valor.slice(10)}`;
+      }
+
+      const valor = digitos.slice(0, CONFIG.RNC.maxDigits);
+      if (valor.length <= 3) return valor;
+      return `${valor.slice(0, 3)}-${valor.slice(3)}`;
+    }
+
+    function contarDigitosAntesPosicion(texto, posicion) {
+      return soloDigitos(texto.slice(0, posicion)).length;
+    }
+
+    function posicionParaCantidadDigitos(textoFormateado, cantidadDigitos) {
+      if (cantidadDigitos <= 0) return 0;
+
+      let contador = 0;
+      for (let index = 0; index < textoFormateado.length; index += 1) {
+        if (/\d/.test(textoFormateado[index])) {
+          contador += 1;
+        }
+        if (contador === cantidadDigitos) {
+          return index + 1;
+        }
+      }
+
+      return textoFormateado.length;
+    }
+
+    function formatearInputManteniendoCursor() {
+      const tipo = obtenerTipoActual();
+      const config = CONFIG[tipo];
+      const cursorActual = documento.selectionStart ?? documento.value.length;
+      const digitosAntesCursor = contarDigitosAntesPosicion(documento.value, cursorActual);
+
+      const digitos = soloDigitos(documento.value).slice(0, config.maxDigits);
+      const formateado = formatearValor(tipo, digitos);
+      documento.value = formateado;
+
+      const nuevaPosicion = posicionParaCantidadDigitos(
+        formateado,
+        Math.min(digitosAntesCursor, digitos.length),
+      );
+
+      requestAnimationFrame(() => {
+        documento.setSelectionRange(nuevaPosicion, nuevaPosicion);
+      });
+    }
+
+    function aplicarReglasDocumento() {
+      const tipo = obtenerTipoActual();
+      const config = CONFIG[tipo];
+
+      if (documentoLabel) {
+        documentoLabel.textContent = config.label;
+      }
+
+      documento.placeholder = config.placeholder;
+      documento.pattern = config.pattern;
+      documento.maxLength = config.maxLength;
+      documento.title = config.title;
+
+      formatearInputManteniendoCursor();
+    }
+
+    documento.addEventListener('keydown', function (event) {
+      const teclasPermitidas = [
+        'Backspace',
+        'Delete',
+        'Tab',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'Enter',
+      ];
+
+      if (teclasPermitidas.includes(event.key)) {
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && ['a', 'c', 'v', 'x'].includes(event.key.toLowerCase())) {
+        return;
+      }
+
+      if (!/^\d$/.test(event.key)) {
+        event.preventDefault();
+      }
+    });
+
+    documento.addEventListener('input', formatearInputManteniendoCursor);
+
+    tipoDocumento.addEventListener('change', aplicarReglasDocumento);
+    aplicarReglasDocumento();
+  })();
+</script>
 {% endblock %}

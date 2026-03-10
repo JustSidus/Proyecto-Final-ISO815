@@ -6,11 +6,13 @@
 <div class="d-flex align-items-center gap-3 mb-4">
   <h2 class="h4 fw-bold mb-0">
     <i class="bi bi-file-earmark-text me-2 text-info"></i>
-    Orden de Compra — OC-{{ orden.pk|stringformat:"05d" }}
+    Orden de Compra - OC-{{ orden.pk|stringformat:"05d" }}
   </h2>
+  {% if puede_editar %}
   <a href="{% url 'compras:orden-update' orden.pk %}" class="btn btn-sm btn-outline-warning ms-auto">
     <i class="bi bi-pencil me-1"></i>Editar
   </a>
+  {% endif %}
   <a href="{% url 'compras:orden-delete' orden.pk %}" class="btn btn-sm btn-outline-danger">
     <i class="bi bi-trash me-1"></i>Eliminar
   </a>
@@ -33,6 +35,7 @@
         <div>
           {% if orden.estado == 'PE' %}<span class="badge bg-warning text-dark fs-6">Pendiente</span>
           {% elif orden.estado == 'AP' %}<span class="badge bg-success fs-6">Aprobada</span>
+          {% elif orden.estado == 'CO' %}<span class="badge bg-primary fs-6">Completada</span>
           {% else %}<span class="badge bg-danger fs-6">Rechazada</span>{% endif %}
         </div>
       </div>
@@ -43,7 +46,7 @@
       <div class="card-body">
         <div class="text-muted small">Proveedor</div>
         <div class="fw-semibold">{{ orden.proveedor.nombre_comercial }}</div>
-        <div class="text-muted small">{{ orden.proveedor.cedula_rnc }}</div>
+        <div class="text-muted small">{{ orden.proveedor.documento_formateado }}</div>
       </div>
     </div>
   </div>
@@ -80,8 +83,8 @@
             <td>{{ d.articulo.descripcion }}</td>
             <td>{{ d.unidad_medida.descripcion }}</td>
             <td class="text-end">{{ d.cantidad }}</td>
-            <td class="text-end">RD$ {{ d.costo_unitario }}</td>
-            <td class="text-end fw-semibold">RD$ {{ d.subtotal }}</td>
+            <td class="text-end">RD$ {{ d.costo_unitario|floatformat:2 }}</td>
+            <td class="text-end fw-semibold">RD$ {{ d.subtotal|floatformat:2 }}</td>
           </tr>
           {% empty %}
           <tr><td colspan="6" class="text-center text-muted py-3">Sin líneas de detalle.</td></tr>
@@ -90,7 +93,7 @@
         <tfoot class="table-light">
           <tr>
             <td colspan="5" class="text-end fw-bold">TOTAL</td>
-            <td class="text-end fw-bold text-success">RD$ {{ total }}</td>
+            <td class="text-end fw-bold text-success">RD$ {{ total|floatformat:2 }}</td>
           </tr>
         </tfoot>
       </table>

@@ -4,56 +4,526 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="h4 fw-bold mb-0"><i class="bi bi-file-earmark-text me-2 text-info"></i>Órdenes de Compra</h2>
-  <a href="{% url 'compras:orden-create' %}" class="btn btn-info text-white">
-    <i class="bi bi-plus-circle me-1"></i>Nueva Orden
-  </a>
+  <div class="d-flex align-items-center gap-3">
+    <h2 class="h4 fw-bold mb-0"><i class="bi bi-file-earmark-text me-2 text-info"></i>Órdenes de Compra</h2>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span class="text-muted small">Mostrar:</span>
+      <select id="selectLimite" class="form-select form-select-sm" style="width: auto; min-width: 70px;">
+        {% for opcion in limite_opciones %}
+        <option value="{{ opcion }}" {% if opcion == limite_actual %}selected{% endif %}>{{ opcion }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'compras:orden-backlog' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-table me-1"></i>Backlog
+    </a>
+    <a href="{% url 'compras:orden-create' %}" class="btn btn-info text-white">
+      <i class="bi bi-plus-circle me-1"></i>Nueva Orden
+    </a>
+  </div>
 </div>
 
-<div class="card shadow-sm">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>N° Orden</th>
-            <th>Fecha</th>
-            <th>Proveedor</th>
-            <th>Departamento</th>
-            <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for o in ordenes %}
-          <tr>
-            <td><strong>OC-{{ o.pk|stringformat:"05d" }}</strong></td>
-            <td>{{ o.fecha_orden }}</td>
-            <td>{{ o.proveedor.nombre_comercial }}</td>
-            <td>{{ o.departamento.nombre }}</td>
-            <td class="text-center">
-              {% if o.estado == 'PE' %}<span class="badge bg-warning text-dark">Pendiente</span>
-              {% elif o.estado == 'AP' %}<span class="badge bg-success">Aprobada</span>
-              {% else %}<span class="badge bg-danger">Rechazada</span>{% endif %}
-            </td>
-            <td class="text-end">
-              <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info">
-                <i class="bi bi-eye"></i>
-              </a>
-              <a href="{% url 'compras:orden-update' o.pk %}" class="btn btn-sm btn-outline-warning">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger">
-                <i class="bi bi-trash"></i>
-              </a>
-            </td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="6" class="text-center text-muted py-4">No hay órdenes de compra registradas.</td></tr>
+<div class="card border-0 bg-light mb-3" style="box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+  <div class="card-body py-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-lg-4 col-md-6">
+        <label class="form-label small text-muted mb-1">Proveedor</label>
+        <select name="proveedor" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          {% for p in proveedores_filtro %}
+          <option value="{{ p.pk }}" {% if filtro_proveedor == p.pk|stringformat:'s' %}selected{% endif %}>
+            {{ p.nombre_comercial }}
+          </option>
           {% endfor %}
-        </tbody>
-      </table>
+        </select>
+      </div>
+      <div class="col-lg-5 col-md-6">
+        <label class="form-label small text-muted mb-1">Orden de compra</label>
+        <input
+          type="text"
+          name="orden"
+          class="form-control form-control-sm"
+          list="ordenes-autocomplete"
+          value="{{ filtro_orden }}"
+          placeholder="Ej: OC-00021"
+          autocomplete="off"
+        >
+        <datalist id="ordenes-autocomplete"></datalist>
+      </div>
+      <div class="col-lg-3 col-md-6 d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-outline-info flex-grow-1">
+          <i class="bi bi-search me-1"></i>Filtrar
+        </button>
+        <a href="{% url 'compras:orden-list' %}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="text-muted mb-1">Arrastra una orden entre columnas para cambiar su estado sin entrar a editar.</p>
+
+<div class="kanban-board">
+  <div class="kanban-col kanban-col-main">
+    <div class="card shadow-sm kanban-column h-100">
+      <div class="card-header bg-warning-subtle fw-semibold">Pendientes ({{ ordenes_pendientes_total }})</div>
+      <div class="card-body kanban-dropzone" data-estado="PE">
+        {% for o in ordenes_pendientes_visibles %}
+        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between">
+              <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
+              <span class="badge bg-warning text-dark">Pendiente</span>
+            </div>
+            <div class="small text-muted">{{ o.proveedor.nombre_comercial|truncatechars:28 }}</div>
+            <div class="small text-muted">{{ o.departamento.nombre }}</div>
+            <div class="small mt-1">Total: <strong>RD$ {{ o.total|floatformat:2 }}</strong></div>
+            <div class="d-flex justify-content-end gap-1 mt-auto pt-2">
+              <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+              <a href="{% url 'compras:orden-update' o.pk %}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>
+              <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="text-muted small">Sin órdenes pendientes.</div>
+        {% endfor %}
+      </div>
+      {% if ordenes_pendientes_archivadas %}
+      <div class="card-footer bg-white border-top">
+        <button type="button" class="btn btn-sm btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasPendientes">
+          Archivadas ({{ ordenes_pendientes_archivadas|length }})
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="kanban-col kanban-col-main">
+    <div class="card shadow-sm kanban-column h-100">
+      <div class="card-header bg-success-subtle fw-semibold">Aprobadas ({{ ordenes_aprobadas_total }})</div>
+      <div class="card-body kanban-dropzone" data-estado="AP">
+        {% for o in ordenes_aprobadas_visibles %}
+        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between">
+              <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
+              <span class="badge bg-success">Aprobada</span>
+            </div>
+            <div class="small text-muted">{{ o.proveedor.nombre_comercial|truncatechars:28 }}</div>
+            <div class="small text-muted">{{ o.departamento.nombre }}</div>
+            <div class="small mt-1">Hold: <strong>Sí</strong></div>
+            <div class="d-flex justify-content-end gap-1 mt-auto pt-2">
+              <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+              <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="text-muted small">Sin órdenes aprobadas.</div>
+        {% endfor %}
+      </div>
+      {% if ordenes_aprobadas_archivadas %}
+      <div class="card-footer bg-white border-top">
+        <button type="button" class="btn btn-sm btn-outline-success w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasAprobadas">
+          Archivadas ({{ ordenes_aprobadas_archivadas|length }})
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="kanban-col kanban-col-main">
+    <div class="card shadow-sm kanban-column h-100">
+      <div class="card-header bg-primary-subtle fw-semibold">Completadas ({{ ordenes_completadas_total }})</div>
+      <div class="card-body kanban-dropzone" data-estado="CO">
+        {% for o in ordenes_completadas_visibles %}
+        <div class="card mb-2 kanban-card" draggable="false" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between">
+              <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
+              <span class="badge bg-primary">Completada</span>
+            </div>
+            <div class="small text-muted">{{ o.proveedor.nombre_comercial|truncatechars:28 }}</div>
+            <div class="small text-muted">{{ o.departamento.nombre }}</div>
+            <div class="small mt-1">Total: <strong>RD$ {{ o.total|floatformat:2 }}</strong></div>
+            <div class="d-flex justify-content-end gap-1 mt-auto pt-2">
+              <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+              <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="text-muted small">Sin órdenes completadas.</div>
+        {% endfor %}
+      </div>
+      {% if ordenes_completadas_archivadas %}
+      <div class="card-footer bg-white border-top">
+        <button type="button" class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasCompletadas">
+          Archivadas ({{ ordenes_completadas_archivadas|length }})
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="kanban-col kanban-col-rejected">
+    <div class="card shadow-sm kanban-column h-100">
+      <div class="card-header bg-danger-subtle fw-semibold">Rechazadas ({{ ordenes_rechazadas_total }})</div>
+      <div class="card-body kanban-dropzone" data-estado="RE">
+        {% for o in ordenes_rechazadas_visibles %}
+        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between">
+              <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
+              <span class="badge bg-danger">Rechazada</span>
+            </div>
+            <div class="small text-muted">{{ o.proveedor.nombre_comercial|truncatechars:18 }}</div>
+            <div class="d-flex justify-content-end gap-1 mt-auto pt-2">
+              <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+              <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="text-muted small">Sin órdenes rechazadas.</div>
+        {% endfor %}
+      </div>
+      {% if ordenes_rechazadas_archivadas %}
+      <div class="card-footer bg-white border-top">
+        <button type="button" class="btn btn-sm btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasRechazadas">
+          Archivadas ({{ ordenes_rechazadas_archivadas|length }})
+        </button>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>
+
+{% if ordenes_pendientes_archivadas %}
+<div class="modal fade" id="modalArchivadasPendientes" tabindex="-1" aria-labelledby="modalArchivadasPendientesLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalArchivadasPendientesLabel">Órdenes Pendientes Archivadas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+              {% for o in ordenes_pendientes_archivadas %}
+              <tr>
+                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
+                <td>{{ o.fecha_orden }}</td>
+                <td>{{ o.proveedor.nombre_comercial }}</td>
+                <td>{{ o.departamento.nombre }}</td>
+                <td class="text-end">
+                  {% if o.transiciones_disponibles %}
+                  <div class="dropdown d-inline-block">
+                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      {% for t in o.transiciones_disponibles %}
+                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                  <a href="{% url 'compras:orden-update' o.pk %}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>
+                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if ordenes_aprobadas_archivadas %}
+<div class="modal fade" id="modalArchivadasAprobadas" tabindex="-1" aria-labelledby="modalArchivadasAprobadasLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalArchivadasAprobadasLabel">Órdenes Aprobadas Archivadas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+              {% for o in ordenes_aprobadas_archivadas %}
+              <tr>
+                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
+                <td>{{ o.fecha_orden }}</td>
+                <td>{{ o.proveedor.nombre_comercial }}</td>
+                <td>{{ o.departamento.nombre }}</td>
+                <td class="text-end">
+                  {% if o.transiciones_disponibles %}
+                  <div class="dropdown d-inline-block">
+                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      {% for t in o.transiciones_disponibles %}
+                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if ordenes_completadas_archivadas %}
+<div class="modal fade" id="modalArchivadasCompletadas" tabindex="-1" aria-labelledby="modalArchivadasCompletadasLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalArchivadasCompletadasLabel">Órdenes Completadas Archivadas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+              {% for o in ordenes_completadas_archivadas %}
+              <tr>
+                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
+                <td>{{ o.fecha_orden }}</td>
+                <td>{{ o.proveedor.nombre_comercial }}</td>
+                <td>{{ o.departamento.nombre }}</td>
+                <td class="text-end">
+                  {% if o.transiciones_disponibles %}
+                  <div class="dropdown d-inline-block">
+                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      {% for t in o.transiciones_disponibles %}
+                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if ordenes_rechazadas_archivadas %}
+<div class="modal fade" id="modalArchivadasRechazadas" tabindex="-1" aria-labelledby="modalArchivadasRechazadasLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalArchivadasRechazadasLabel">Órdenes Rechazadas Archivadas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+              {% for o in ordenes_rechazadas_archivadas %}
+              <tr>
+                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
+                <td>{{ o.fecha_orden }}</td>
+                <td>{{ o.proveedor.nombre_comercial }}</td>
+                <td>{{ o.departamento.nombre }}</td>
+                <td class="text-end">
+                  {% if o.transiciones_disponibles %}
+                  <div class="dropdown d-inline-block">
+                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      {% for t in o.transiciones_disponibles %}
+                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const transitionRules = {
+      PE: ['AP', 'RE'],
+      AP: ['PE', 'RE', 'CO'],
+      RE: ['PE', 'AP'],
+      CO: []
+    };
+    const autocompleteUrl = "{% url 'compras:orden-autocomplete' %}";
+
+    function getCookie(name) {
+      const cookieValue = document.cookie
+        .split('; ')
+        .find(row => row.startsWith(name + '='));
+      return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
+    }
+
+    const csrfToken = getCookie('csrftoken');
+    let draggingCard = null;
+
+    async function cambiarEstadoOrden(orderId, nextState) {
+      try {
+        const response = await fetch(`/ordenes/${orderId}/estado/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+          },
+          body: JSON.stringify({ estado: nextState }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          alert(payload.error || 'No se pudo cambiar el estado.');
+          return false;
+        }
+
+        window.location.reload();
+        return true;
+      } catch (error) {
+        alert('Error de red al actualizar estado.');
+        return false;
+      }
+    }
+
+    document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
+      card.addEventListener('dragstart', function () {
+        draggingCard = card;
+        card.classList.add('dragging');
+      });
+
+      card.addEventListener('dragend', function () {
+        card.classList.remove('dragging');
+        draggingCard = null;
+      });
+    });
+
+    document.querySelectorAll('.kanban-dropzone').forEach(zone => {
+      zone.addEventListener('dragover', function (event) {
+        event.preventDefault();
+        zone.classList.add('kanban-over');
+      });
+
+      zone.addEventListener('dragleave', function () {
+        zone.classList.remove('kanban-over');
+      });
+
+      zone.addEventListener('drop', async function (event) {
+        event.preventDefault();
+        zone.classList.remove('kanban-over');
+
+        if (!draggingCard) return;
+
+        const orderId = draggingCard.dataset.ordenId;
+        const currentState = draggingCard.dataset.estado;
+        const nextState = zone.dataset.estado;
+
+        if (!orderId || !currentState || !nextState || currentState === nextState) {
+          return;
+        }
+
+        if (!transitionRules[currentState] || !transitionRules[currentState].includes(nextState)) {
+          alert('Transición no permitida para esta orden.');
+          return;
+        }
+
+        await cambiarEstadoOrden(orderId, nextState);
+      });
+    });
+
+    document.addEventListener('click', async function (event) {
+      const boton = event.target.closest('.js-cambiar-estado');
+      if (!boton) return;
+
+      event.preventDefault();
+      const orderId = boton.dataset.ordenId;
+      const nextState = boton.dataset.estado;
+      if (!orderId || !nextState) return;
+
+      await cambiarEstadoOrden(orderId, nextState);
+    });
+
+    const inputOrden = document.querySelector('input[name="orden"]');
+    const listaAutocomplete = document.getElementById('ordenes-autocomplete');
+    let autocompleteTimer = null;
+
+    async function cargarAutocomplete(query) {
+      const response = await fetch(`${autocompleteUrl}?q=${encodeURIComponent(query)}`);
+      if (!response.ok) return;
+      const payload = await response.json();
+
+      listaAutocomplete.innerHTML = '';
+      (payload.results || []).slice(0, 5).forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.codigo;
+        option.label = item.proveedor;
+        listaAutocomplete.appendChild(option);
+      });
+    }
+
+    if (inputOrden && listaAutocomplete) {
+      inputOrden.addEventListener('input', function () {
+        const query = inputOrden.value.trim();
+        clearTimeout(autocompleteTimer);
+
+        if (!query) {
+          listaAutocomplete.innerHTML = '';
+          return;
+        }
+
+        autocompleteTimer = setTimeout(() => {
+          cargarAutocomplete(query);
+        }, 180);
+      });
+    }
+
+    const selectLimite = document.getElementById('selectLimite');
+    if (selectLimite) {
+      selectLimite.addEventListener('change', function () {
+        const url = new URL(window.location);
+        url.searchParams.set('limite', this.value);
+        window.location.href = url.toString();
+      });
+    }
+  })();
+</script>
 {% endblock %}

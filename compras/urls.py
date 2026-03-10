@@ -40,9 +40,12 @@ urlpatterns = [
 
     # ── Órdenes de Compra ─────────────────────────────────────────────────────
     path('ordenes/', views.OrdenCompraListView.as_view(), name='orden-list'),
+    path('ordenes/backlog/', views.OrdenCompraBacklogView.as_view(), name='orden-backlog'),
+    path('ordenes/autocomplete/', views.OrdenCompraAutocompleteView.as_view(), name='orden-autocomplete'),
     path('ordenes/nueva/', views.OrdenCompraCreateView.as_view(), name='orden-create'),
     path('ordenes/<int:pk>/', views.OrdenCompraDetailView.as_view(), name='orden-detail'),
     path('ordenes/<int:pk>/editar/', views.OrdenCompraUpdateView.as_view(), name='orden-update'),
+    path('ordenes/<int:pk>/estado/', views.OrdenCompraCambiarEstadoView.as_view(), name='orden-estado-update'),
     path('ordenes/<int:pk>/eliminar/', views.OrdenCompraDeleteView.as_view(), name='orden-delete'),
 
     # ── Consulta por criterios ────────────────────────────────────────────────

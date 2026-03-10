@@ -1,4 +1,4 @@
-/* main.js — Sistema de Compras UNAPEC */
+/* main.js - Sistema de Compras UNAPEC */
 
 document.addEventListener('DOMContentLoaded', function () {
 

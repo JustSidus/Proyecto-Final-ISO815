@@ -17,6 +17,7 @@
         <thead class="table-light">
           <tr>
             <th>#</th>
+            <th>Tipo Doc.</th>
             <th>Cédula / RNC</th>
             <th>Nombre Comercial</th>
             <th class="text-center">Estado</th>
@@ -27,7 +28,8 @@
           {% for p in proveedores %}
           <tr>
             <td>{{ p.id }}</td>
-            <td><code>{{ p.cedula_rnc }}</code></td>
+            <td>{{ p.get_tipo_documento_display }}</td>
+            <td><code>{{ p.documento_formateado }}</code></td>
             <td>{{ p.nombre_comercial }}</td>
             <td class="text-center">
               {% if p.estado %}<span class="badge bg-success">Activo</span>
@@ -43,7 +45,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="text-center text-muted py-4">No hay proveedores registrados.</td></tr>
+          <tr><td colspan="6" class="text-center text-muted py-4">No hay proveedores registrados.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -21,6 +21,8 @@
             <th>Marca</th>
             <th>Unidad de Medida</th>
             <th class="text-end">Existencia</th>
+            <th class="text-end">En Hold</th>
+            <th class="text-end">Disponible</th>
             <th class="text-center">Estado</th>
             <th class="text-end">Acciones</th>
           </tr>
@@ -33,6 +35,8 @@
             <td>{{ a.marca }}</td>
             <td>{{ a.unidad_medida }}</td>
             <td class="text-end">{{ a.existencia }}</td>
+            <td class="text-end">{{ a.cantidad_retenida }}</td>
+            <td class="text-end fw-semibold">{{ a.disponible }}</td>
             <td class="text-center">
               {% if a.estado %}<span class="badge bg-success">Activo</span>
               {% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}
@@ -47,7 +51,7 @@
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="7" class="text-center text-muted py-4">No hay artículos registrados.</td></tr>
+          <tr><td colspan="9" class="text-center text-muted py-4">No hay artículos registrados.</td></tr>
           {% endfor %}
         </tbody>
       </table>
