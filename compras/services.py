@@ -1,8 +1,10 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
 
-from .models import Articulo, OrdenCompra
+from .models import Articulo, AsientoContable, OrdenCompra
 
 
 TRANSICIONES_VALIDAS = {
@@ -19,6 +21,11 @@ TRANSICIONES_VALIDAS = {
     },
     OrdenCompra.ESTADO_COMPLETADA: set(),
 }
+
+
+TIPO_INVENTARIO_GENERAL = 1
+CUENTA_CONTABLE_INVENTARIO = '110101'
+CUENTA_CONTABLE_CXP = '210101'
 
 
 def _resumen_detalles(orden):
@@ -77,6 +84,54 @@ def _consumir_orden_aprobada(articulos, cantidades):
         articulo.save(update_fields=['cantidad_retenida', 'existencia'])
 
 
+def _monto_total_orden(orden):
+    detalles = orden.detalles.all()
+    return sum((detalle.subtotal() for detalle in detalles), Decimal('0'))
+
+
+def _crear_o_actualizar_asientos_orden_completada(orden):
+    monto_total = _monto_total_orden(orden)
+    if monto_total <= 0:
+        raise ValidationError('No se puede generar asiento para una orden sin monto total válido.')
+
+    codigo_orden = f'OC-{orden.pk:05d}'
+    descripcion_db = f'{codigo_orden} - Compra inventario'[:200]
+    descripcion_cr = f'{codigo_orden} - CxP proveedor'[:200]
+
+    fecha_asiento = orden.fecha_orden
+
+    _, db_creado = AsientoContable.objects.update_or_create(
+        orden_compra=orden,
+        tipo_movimiento=AsientoContable.TIPO_DB,
+        defaults={
+            'descripcion': descripcion_db,
+            'tipo_inventario': TIPO_INVENTARIO_GENERAL,
+            'cuenta_contable': CUENTA_CONTABLE_INVENTARIO,
+            'fecha': fecha_asiento,
+            'monto': monto_total,
+            'estado': True,
+        },
+    )
+
+    _, cr_creado = AsientoContable.objects.update_or_create(
+        orden_compra=orden,
+        tipo_movimiento=AsientoContable.TIPO_CR,
+        defaults={
+            'descripcion': descripcion_cr,
+            'tipo_inventario': TIPO_INVENTARIO_GENERAL,
+            'cuenta_contable': CUENTA_CONTABLE_CXP,
+            'fecha': fecha_asiento,
+            'monto': monto_total,
+            'estado': True,
+        },
+    )
+
+    return {
+        'creados': int(db_creado) + int(cr_creado),
+        'actualizados': int(not db_creado) + int(not cr_creado),
+    }
+
+
 def cambiar_estado_orden(orden, nuevo_estado):
     estados_validos = {codigo for codigo, _ in OrdenCompra.ESTADO_CHOICES}
     if nuevo_estado not in estados_validos:
@@ -108,7 +163,23 @@ def cambiar_estado_orden(orden, nuevo_estado):
         orden.estado = nuevo_estado
         orden.save(update_fields=['estado'])
 
+        if nuevo_estado == OrdenCompra.ESTADO_COMPLETADA:
+            _crear_o_actualizar_asientos_orden_completada(orden)
+
     return orden
+
+
+def sincronizar_asientos_ordenes_completadas():
+    resumen = {'ordenes_procesadas': 0, 'asientos_creados': 0, 'asientos_actualizados': 0}
+
+    ordenes = OrdenCompra.objects.filter(estado=OrdenCompra.ESTADO_COMPLETADA)
+    for orden in ordenes:
+        resultado = _crear_o_actualizar_asientos_orden_completada(orden)
+        resumen['ordenes_procesadas'] += 1
+        resumen['asientos_creados'] += resultado['creados']
+        resumen['asientos_actualizados'] += resultado['actualizados']
+
+    return resumen
 
 
 def liberar_hold_si_aprobada(orden):

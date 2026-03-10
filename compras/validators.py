@@ -52,7 +52,7 @@ def validar_cedula_dominicana(valor):
     valida_variante = _valida_luhn_variante(documento)
 
     if not (valida_estandar or valida_variante):
-        raise ValidationError('La cédula no es válida según la verificación de Luhn.')
+        raise ValidationError('La cédula no es válida')
 
     return documento
 

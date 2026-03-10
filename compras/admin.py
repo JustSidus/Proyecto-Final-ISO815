@@ -69,7 +69,7 @@ class OrdenCompraAdmin(admin.ModelAdmin):
 @admin.register(AsientoContable)
 class AsientoContableAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'descripcion', 'cuenta_contable', 'tipo_movimiento',
+        'id', 'orden_compra', 'descripcion', 'cuenta_contable', 'tipo_movimiento',
         'fecha', 'monto', 'estado',
     )
     list_filter = ('estado', 'tipo_movimiento')

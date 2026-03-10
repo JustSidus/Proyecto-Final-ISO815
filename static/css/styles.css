@@ -35,6 +35,17 @@ body {
   background-color: rgba(255, 255, 255, 0.24);
   font-weight: 600;
 }
+
+.logout-nav-form {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.logout-nav-button {
+  line-height: 1.2;
+}
+
 /* Opcional: mejorar contraste de iconos */
 .navbar i, .navbar svg {
   color: #fff !important;

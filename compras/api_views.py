@@ -1,4 +1,4 @@
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, permissions
 
 from .models import AsientoContable
 from .serializers import AsientoContableSerializer
@@ -25,6 +25,9 @@ class AsientoContableViewSet(viewsets.ModelViewSet):
 
     queryset = AsientoContable.objects.all().order_by('-fecha')
     serializer_class = AsientoContableSerializer
+
+    permission_classes = [permissions.DjangoModelPermissionsOrAnonReadOnly]
+    pagination_class = None
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['descripcion', 'cuenta_contable']
     ordering_fields = ['fecha', 'monto', 'tipo_movimiento']

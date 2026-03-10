@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.http import JsonResponse
@@ -86,7 +87,7 @@ def _transiciones_disponibles(estado_actual):
 
 # ── Inicio ────────────────────────────────────────────────────────────────────
 
-class IndexView(TemplateView):
+class IndexView(LoginRequiredMixin, TemplateView):
     template_name = 'compras/index.html'
 
     def get_context_data(self, **kwargs):
@@ -103,13 +104,13 @@ class IndexView(TemplateView):
 
 # ── Departamentos ─────────────────────────────────────────────────────────────
 
-class DepartamentoListView(ListView):
+class DepartamentoListView(LoginRequiredMixin, ListView):
     model = Departamento
     template_name = 'compras/departamento_list.html'
     context_object_name = 'departamentos'
 
 
-class DepartamentoCreateView(CreateView):
+class DepartamentoCreateView(LoginRequiredMixin, CreateView):
     model = Departamento
     form_class = DepartamentoForm
     template_name = 'compras/departamento_form.html'
@@ -120,7 +121,7 @@ class DepartamentoCreateView(CreateView):
         return super().form_valid(form)
 
 
-class DepartamentoUpdateView(UpdateView):
+class DepartamentoUpdateView(LoginRequiredMixin, UpdateView):
     model = Departamento
     form_class = DepartamentoForm
     template_name = 'compras/departamento_form.html'
@@ -131,7 +132,7 @@ class DepartamentoUpdateView(UpdateView):
         return super().form_valid(form)
 
 
-class DepartamentoDeleteView(DeleteView):
+class DepartamentoDeleteView(LoginRequiredMixin, DeleteView):
     model = Departamento
     template_name = 'compras/departamento_confirm_delete.html'
     success_url = reverse_lazy('compras:departamento-list')
@@ -143,13 +144,13 @@ class DepartamentoDeleteView(DeleteView):
 
 # ── Unidades de Medida ────────────────────────────────────────────────────────
 
-class UnidadMedidaListView(ListView):
+class UnidadMedidaListView(LoginRequiredMixin, ListView):
     model = UnidadMedida
     template_name = 'compras/unidadmedida_list.html'
     context_object_name = 'unidades'
 
 
-class UnidadMedidaCreateView(CreateView):
+class UnidadMedidaCreateView(LoginRequiredMixin, CreateView):
     model = UnidadMedida
     form_class = UnidadMedidaForm
     template_name = 'compras/unidadmedida_form.html'
@@ -160,7 +161,7 @@ class UnidadMedidaCreateView(CreateView):
         return super().form_valid(form)
 
 
-class UnidadMedidaUpdateView(UpdateView):
+class UnidadMedidaUpdateView(LoginRequiredMixin, UpdateView):
     model = UnidadMedida
     form_class = UnidadMedidaForm
     template_name = 'compras/unidadmedida_form.html'
@@ -171,7 +172,7 @@ class UnidadMedidaUpdateView(UpdateView):
         return super().form_valid(form)
 
 
-class UnidadMedidaDeleteView(DeleteView):
+class UnidadMedidaDeleteView(LoginRequiredMixin, DeleteView):
     model = UnidadMedida
     template_name = 'compras/unidadmedida_confirm_delete.html'
     success_url = reverse_lazy('compras:unidadmedida-list')
@@ -183,13 +184,13 @@ class UnidadMedidaDeleteView(DeleteView):
 
 # ── Proveedores ───────────────────────────────────────────────────────────────
 
-class ProveedorListView(ListView):
+class ProveedorListView(LoginRequiredMixin, ListView):
     model = Proveedor
     template_name = 'compras/proveedor_list.html'
     context_object_name = 'proveedores'
 
 
-class ProveedorCreateView(CreateView):
+class ProveedorCreateView(LoginRequiredMixin, CreateView):
     model = Proveedor
     form_class = ProveedorForm
     template_name = 'compras/proveedor_form.html'
@@ -200,7 +201,7 @@ class ProveedorCreateView(CreateView):
         return super().form_valid(form)
 
 
-class ProveedorUpdateView(UpdateView):
+class ProveedorUpdateView(LoginRequiredMixin, UpdateView):
     model = Proveedor
     form_class = ProveedorForm
     template_name = 'compras/proveedor_form.html'
@@ -211,7 +212,7 @@ class ProveedorUpdateView(UpdateView):
         return super().form_valid(form)
 
 
-class ProveedorDeleteView(DeleteView):
+class ProveedorDeleteView(LoginRequiredMixin, DeleteView):
     model = Proveedor
     template_name = 'compras/proveedor_confirm_delete.html'
     success_url = reverse_lazy('compras:proveedor-list')
@@ -223,13 +224,13 @@ class ProveedorDeleteView(DeleteView):
 
 # ── Artículos ─────────────────────────────────────────────────────────────────
 
-class ArticuloListView(ListView):
+class ArticuloListView(LoginRequiredMixin, ListView):
     model = Articulo
     template_name = 'compras/articulo_list.html'
     context_object_name = 'articulos'
 
 
-class ArticuloCreateView(CreateView):
+class ArticuloCreateView(LoginRequiredMixin, CreateView):
     model = Articulo
     form_class = ArticuloForm
     template_name = 'compras/articulo_form.html'
@@ -240,7 +241,7 @@ class ArticuloCreateView(CreateView):
         return super().form_valid(form)
 
 
-class ArticuloUpdateView(UpdateView):
+class ArticuloUpdateView(LoginRequiredMixin, UpdateView):
     model = Articulo
     form_class = ArticuloForm
     template_name = 'compras/articulo_form.html'
@@ -251,7 +252,7 @@ class ArticuloUpdateView(UpdateView):
         return super().form_valid(form)
 
 
-class ArticuloDeleteView(DeleteView):
+class ArticuloDeleteView(LoginRequiredMixin, DeleteView):
     model = Articulo
     template_name = 'compras/articulo_confirm_delete.html'
     success_url = reverse_lazy('compras:articulo-list')
@@ -263,7 +264,7 @@ class ArticuloDeleteView(DeleteView):
 
 # ── Órdenes de Compra ─────────────────────────────────────────────────────────
 
-class OrdenCompraListView(ListView):
+class OrdenCompraListView(LoginRequiredMixin, ListView):
     model = OrdenCompra
     template_name = 'compras/orden_list.html'
     context_object_name = 'ordenes'
@@ -337,7 +338,7 @@ class OrdenCompraListView(ListView):
         return ctx
 
 
-class OrdenCompraAutocompleteView(View):
+class OrdenCompraAutocompleteView(LoginRequiredMixin, View):
     max_resultados = 5
 
     def get(self, request):
@@ -377,7 +378,7 @@ class OrdenCompraAutocompleteView(View):
         return JsonResponse({'results': resultados})
 
 
-class OrdenCompraBacklogView(ListView):
+class OrdenCompraBacklogView(LoginRequiredMixin, ListView):
     model = OrdenCompra
     template_name = 'compras/orden_backlog.html'
     context_object_name = 'ordenes'
@@ -487,7 +488,7 @@ class OrdenCompraBacklogView(ListView):
         return ctx
 
 
-class OrdenCompraDetailView(DetailView):
+class OrdenCompraDetailView(LoginRequiredMixin, DetailView):
     model = OrdenCompra
     template_name = 'compras/orden_detail.html'
     context_object_name = 'orden'
@@ -500,7 +501,7 @@ class OrdenCompraDetailView(DetailView):
         return ctx
 
 
-class OrdenCompraCreateView(View):
+class OrdenCompraCreateView(LoginRequiredMixin, View):
     """Vista para crear una Orden de Compra con sus líneas de detalle en un solo formulario."""
     template_name = 'compras/orden_form.html'
 
@@ -527,7 +528,7 @@ class OrdenCompraCreateView(View):
         return render(request, self.template_name, {'form': form, 'formset': formset, 'accion': 'Crear'})
 
 
-class OrdenCompraUpdateView(View):
+class OrdenCompraUpdateView(LoginRequiredMixin, View):
     """Vista para editar una Orden de Compra y sus líneas de detalle."""
     template_name = 'compras/orden_form.html'
 
@@ -563,7 +564,7 @@ class OrdenCompraUpdateView(View):
         return render(request, self.template_name, {'form': form, 'formset': formset, 'orden': orden, 'accion': 'Editar'})
 
 
-class OrdenCompraCambiarEstadoView(View):
+class OrdenCompraCambiarEstadoView(LoginRequiredMixin, View):
     def post(self, request, pk):
         orden = get_object_or_404(OrdenCompra, pk=pk)
 
@@ -591,7 +592,7 @@ class OrdenCompraCambiarEstadoView(View):
         })
 
 
-class OrdenCompraDeleteView(DeleteView):
+class OrdenCompraDeleteView(LoginRequiredMixin, DeleteView):
     model = OrdenCompra
     template_name = 'compras/orden_confirm_delete.html'
     success_url = reverse_lazy('compras:orden-list')
@@ -607,7 +608,7 @@ class OrdenCompraDeleteView(DeleteView):
 
 # ── Consulta por criterios ────────────────────────────────────────────────────
 
-class ConsultaOrdenesView(View):
+class ConsultaOrdenesView(LoginRequiredMixin, View):
     template_name = 'compras/consulta_ordenes.html'
 
     def get(self, request):

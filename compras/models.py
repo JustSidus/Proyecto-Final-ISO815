@@ -233,6 +233,14 @@ class AsientoContable(models.Model):
         max_digits=12, decimal_places=2, verbose_name='Monto'
     )
     estado = models.BooleanField(default=True, verbose_name='Activo')
+    orden_compra = models.ForeignKey(
+        OrdenCompra,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='asientos_contables',
+        verbose_name='Orden de Compra Relacionada',
+    )
 
     class Meta:
         verbose_name = 'Asiento Contable'
