@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -19,13 +20,39 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
+# Detectar el entorno (local o Azure)
+# En producción (Azure App Service) configurar la variable de entorno DJANGO_ENV=production
+ENVIRONMENT = os.environ.get('DJANGO_ENV', 'local')
+IS_PRODUCTION = (ENVIRONMENT == 'production')
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5f5a9+76n-jm(l%eo)r#@^zb3iirkk_)%_$m4ywlrw)b6u!#5_'
+# En producción SIEMPRE leer una clave segura desde el entorno
+if IS_PRODUCTION:
+    SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+    if not SECRET_KEY:
+        raise ValueError('DJANGO_SECRET_KEY must be set in production environment')
+else:
+    # En desarrollo, usar clave insegura (Django lo avisa automáticamente)
+    SECRET_KEY = 'django-insecure-5f5a9+76n-jm(l%eo)r#@^zb3iirkk_)%_$m4ywlrw)b6u!#5_'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if IS_PRODUCTION:
+    # En producción SIEMPRE DEBUG=False
+    DEBUG = False
+else:
+    # En desarrollo, usar DEBUG=True para mensajes de error detallados y recarga automática
+    DEBUG = True
 
-ALLOWED_HOSTS = []
+# Configurar ALLOWED_HOSTS según el entorno
+if IS_PRODUCTION:
+    # En Azure, aceptar dominios de Azure y cualquier subdominio
+    ALLOWED_HOSTS = [
+        '*.azurewebsites.net',  # Cualquier app service en Azure
+        os.environ.get('DJANGO_ALLOWED_HOST', 'localhost'),  # Host específico si se proporciona
+    ]
+else:
+    # En desarrollo, permitir localhost y 127.0.0.1
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '[::1]', '*']
 
 
 # Application definition
@@ -45,6 +72,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # WhiteNoise debe ir justo después de SecurityMiddleware para que pueda
+    # servir archivos estáticos directamente desde el mismo proceso WSGI.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -120,6 +150,13 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# En producción (App Service) Django no sirve estáticos por sí mismo, así que
+# recogemos en una carpeta distinta y dejamos que WhiteNoise los sirva.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Tell Django to use WhiteNoise storage backend so that files are compressed
+# and named with hashes for cache busting.
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

@@ -8,9 +8,15 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/wsgi/
 """
 
 import os
+from pathlib import Path
 
-from django.core.wsgi import get_wsgi_application
-
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-
-application = get_wsgi_application()
+# Cargar variables de entorno desde .env si existe (principalmente para desarrollo)
+try:
+    from dotenv import load_dotenv
+    env_file = Path(__file__).resolve().parent.parent / '.env'
+    if env_file.exists():
+        load_dotenv(env_file)
+except ImportError:
+    # Si python-dotenv no está instalado, ignorar (normalmente en producción
+    # las variables vienen del sistema operativo / Azure)
+    pass
