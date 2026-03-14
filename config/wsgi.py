@@ -20,3 +20,8 @@ except ImportError:
     # Si python-dotenv no está instalado, ignorar (normalmente en producción
     # las variables vienen del sistema operativo / Azure)
     pass
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+
+from django.core.wsgi import get_wsgi_application
+application = get_wsgi_application()
