@@ -24,6 +24,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # En producción (Azure App Service) configurar la variable de entorno DJANGO_ENV=production
 ENVIRONMENT = os.environ.get('DJANGO_ENV', 'local')
 IS_PRODUCTION = (ENVIRONMENT == 'production')
+WEBSITE_HOSTNAME = os.environ.get('WEBSITE_HOSTNAME')
+CUSTOM_ALLOWED_HOST = os.environ.get('DJANGO_ALLOWED_HOST')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # En producción SIEMPRE leer una clave segura desde el entorno
@@ -45,14 +47,25 @@ else:
 
 # Configurar ALLOWED_HOSTS según el entorno
 if IS_PRODUCTION:
-    # En Azure, aceptar dominios de Azure y cualquier subdominio
-    ALLOWED_HOSTS = [
-        '*.azurewebsites.net',  # Cualquier app service en Azure
-        os.environ.get('DJANGO_ALLOWED_HOST', 'localhost'),  # Host específico si se proporciona
-    ]
+    # En Azure, aceptar el hostname real del App Service y dominios de Azure.
+    ALLOWED_HOSTS = ['.azurewebsites.net']
+    if WEBSITE_HOSTNAME:
+        ALLOWED_HOSTS.append(WEBSITE_HOSTNAME)
+    if CUSTOM_ALLOWED_HOST:
+        ALLOWED_HOSTS.append(CUSTOM_ALLOWED_HOST)
 else:
     # En desarrollo, permitir localhost y 127.0.0.1
     ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '[::1]', '*']
+
+CSRF_TRUSTED_ORIGINS = []
+if IS_PRODUCTION:
+    if WEBSITE_HOSTNAME:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{WEBSITE_HOSTNAME}')
+    if CUSTOM_ALLOWED_HOST:
+        if CUSTOM_ALLOWED_HOST.startswith('http://') or CUSTOM_ALLOWED_HOST.startswith('https://'):
+            CSRF_TRUSTED_ORIGINS.append(CUSTOM_ALLOWED_HOST)
+        else:
+            CSRF_TRUSTED_ORIGINS.append(f'https://{CUSTOM_ALLOWED_HOST}')
 
 
 # Application definition
@@ -107,17 +120,34 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 if IS_PRODUCTION:
+    azure_sql_db = os.environ.get('AZURE_SQL_DB')
+    azure_sql_server = os.environ.get('AZURE_SQL_SERVER')
+    azure_sql_managed_identity_client_id = os.environ.get('AZURE_SQL_MANAGED_IDENTITY_CLIENT_ID')
+
+    if not azure_sql_db or not azure_sql_server:
+        raise ValueError('AZURE_SQL_DB and AZURE_SQL_SERVER must be set in production environment')
+
+    database_config = {
+        'ENGINE': 'mssql',
+        'NAME': azure_sql_db,
+        'HOST': azure_sql_server,
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 18 for SQL Server',
+            'extra_params': 'Authentication=ActiveDirectoryMsi;Encrypt=yes;TrustServerCertificate=no',
+            'connection_timeout': 30,
+            'connection_retries': 5,
+            'connection_retry_backoff_time': 5,
+        },
+    }
+
+    # Si en el futuro se usa una identidad administrada "user-assigned",
+    # Azure SQL requiere enviar el client ID como UID.
+    if azure_sql_managed_identity_client_id:
+        database_config['USER'] = azure_sql_managed_identity_client_id
+
     DATABASES = {
-        'default': {
-            'ENGINE': 'mssql',
-            'NAME': os.environ.get('AZURE_SQL_DB'),
-            'HOST': os.environ.get('AZURE_SQL_SERVER'),
-            'PORT': '1433',
-            'OPTIONS': {
-                'driver': 'ODBC Driver 18 for SQL Server',
-                'extra_params': 'Authentication=ActiveDirectoryDefault',
-            },
-        }
+        'default': database_config,
     }
 else:
     DATABASES = {
