@@ -6,3 +6,5 @@ tzdata==2025.3
 gunicorn
 whitenoise
 python-dotenv
+mssql-django
+azure-identity
