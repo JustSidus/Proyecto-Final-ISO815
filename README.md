@@ -48,4 +48,4 @@ python manage.py runserver
 - **Profesor:** Juan P. Valdez
 - **Asignatura:** ISO815
 - **Institución:** Universidad Apec
-- **Año:** 2025
+- **Año:** 2026
