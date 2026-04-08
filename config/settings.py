@@ -96,12 +96,20 @@ MIDDLEWARE = [
     # servir archivos estáticos directamente desde el mismo proceso WSGI.
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'opencensus.ext.django.middleware.OpencensusMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+# Application Insights - Instrumentación para telemetría en Azure
+OPENCENSUS = {
+    'trace': {
+        'sampler': 'opencensus.trace.samplers.AlwaysOnSampler()',
+        'exporter': 'opencensus.ext.azure.trace_exporter.AzureExporter()',
+    },
+}
 
 ROOT_URLCONF = 'config.urls'
 
