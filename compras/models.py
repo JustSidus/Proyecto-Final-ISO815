@@ -215,9 +215,18 @@ class OrdenCompraDetalle(models.Model):
 class AsientoContable(models.Model):
     TIPO_DB = 'DB'
     TIPO_CR = 'CR'
+    WS_PENDIENTE = 'PE'
+    WS_ENVIADO = 'EN'
+    WS_ERROR = 'ER'
+
     TIPO_MOVIMIENTO_CHOICES = [
         (TIPO_DB, 'Débito'),
         (TIPO_CR, 'Crédito'),
+    ]
+    WS_ESTADO_CHOICES = [
+        (WS_PENDIENTE, 'Pendiente de envío'),
+        (WS_ENVIADO, 'Enviado'),
+        (WS_ERROR, 'Error'),
     ]
 
     descripcion = models.CharField(max_length=200, verbose_name='Descripción')
@@ -233,6 +242,27 @@ class AsientoContable(models.Model):
         max_digits=12, decimal_places=2, verbose_name='Monto'
     )
     estado = models.BooleanField(default=True, verbose_name='Activo')
+    ws_estado_envio = models.CharField(
+        max_length=2,
+        choices=WS_ESTADO_CHOICES,
+        default=WS_PENDIENTE,
+        verbose_name='Estado envío WS',
+    )
+    ws_asiento_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='ID Asiento WS',
+    )
+    ws_fecha_envio = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha envío WS',
+    )
+    ws_error = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Error envío WS',
+    )
     orden_compra = models.ForeignKey(
         OrdenCompra,
         on_delete=models.SET_NULL,
@@ -249,3 +279,80 @@ class AsientoContable(models.Model):
 
     def __str__(self):
         return f'AC-{self.pk:05d} | {self.descripcion} | {self.get_tipo_movimiento_display()}'
+
+
+class AsientoContableIntegracion(models.Model):
+    WS_PENDIENTE = 'PE'
+    WS_ENVIADO = 'EN'
+    WS_ERROR = 'ER'
+
+    WS_ESTADO_CHOICES = [
+        (WS_PENDIENTE, 'Pendiente de envío'),
+        (WS_ENVIADO, 'Enviado'),
+        (WS_ERROR, 'Error'),
+    ]
+
+    orden_compra = models.OneToOneField(
+        OrdenCompra,
+        on_delete=models.CASCADE,
+        related_name='integracion_ws',
+        verbose_name='Orden de Compra',
+    )
+    asiento_debito = models.ForeignKey(
+        AsientoContable,
+        on_delete=models.CASCADE,
+        related_name='integraciones_ws_debito',
+        null=True,
+        blank=True,
+        verbose_name='Asiento Débito',
+    )
+    asiento_credito = models.ForeignKey(
+        AsientoContable,
+        on_delete=models.CASCADE,
+        related_name='integraciones_ws_credito',
+        null=True,
+        blank=True,
+        verbose_name='Asiento Crédito',
+    )
+    auxiliar_id = models.BigIntegerField(verbose_name='ID Auxiliar WS')
+    tipo_inventario_id = models.IntegerField(verbose_name='ID Tipo de Inventario')
+    cuenta_debito_id = models.BigIntegerField(verbose_name='ID Cuenta Débito WS')
+    cuenta_credito_id = models.BigIntegerField(verbose_name='ID Cuenta Crédito WS')
+    descripcion = models.CharField(max_length=200, verbose_name='Descripción')
+    fecha_asiento = models.DateField(verbose_name='Fecha del Asiento')
+    monto_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name='Monto Total',
+    )
+    estado = models.BooleanField(default=True, verbose_name='Activo')
+    payload_json = models.TextField(blank=True, default='', verbose_name='Payload JSON')
+    ws_estado_envio = models.CharField(
+        max_length=2,
+        choices=WS_ESTADO_CHOICES,
+        default=WS_PENDIENTE,
+        verbose_name='Estado envío WS',
+    )
+    ws_asiento_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='ID Asiento WS',
+    )
+    ws_fecha_envio = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha envío WS',
+    )
+    ws_error = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Error envío WS',
+    )
+
+    class Meta:
+        verbose_name = 'Integración de Asiento Contable'
+        verbose_name_plural = 'Integraciones de Asientos Contables'
+        ordering = ['-id']
+
+    def __str__(self):
+        return f'WS-{self.orden_compra_id or "SIN-OC"} | {self.descripcion}'

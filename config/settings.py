@@ -17,6 +17,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
@@ -220,3 +227,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
+
+# Integración con WS Contable
+WS_CONTABLE_ENABLED = env_bool('WS_CONTABLE_ENABLED', False)
+WS_CONTABLE_BASE_URL = os.environ.get('WS_CONTABLE_BASE_URL', 'http://151.242.194.24').strip()
+WS_CONTABLE_TIMEOUT = float(os.environ.get('WS_CONTABLE_TIMEOUT', '10'))
+WS_CONTABLE_AUXILIAR_ID = int(os.environ.get('WS_CONTABLE_AUXILIAR_ID', '7'))
+WS_CONTABLE_CUENTA_DEBITO_ID = int(os.environ.get('WS_CONTABLE_CUENTA_DEBITO_ID', '2'))
+WS_CONTABLE_CUENTA_CREDITO_ID = int(os.environ.get('WS_CONTABLE_CUENTA_CREDITO_ID', '1'))

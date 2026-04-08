@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     Articulo,
     AsientoContable,
+    AsientoContableIntegracion,
     Departamento,
     OrdenCompra,
     OrdenCompraDetalle,
@@ -70,7 +71,17 @@ class OrdenCompraAdmin(admin.ModelAdmin):
 class AsientoContableAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'orden_compra', 'descripcion', 'cuenta_contable', 'tipo_movimiento',
-        'fecha', 'monto', 'estado',
+        'fecha', 'monto', 'estado', 'ws_estado_envio', 'ws_asiento_id',
     )
-    list_filter = ('estado', 'tipo_movimiento')
+    list_filter = ('estado', 'tipo_movimiento', 'ws_estado_envio')
     search_fields = ('descripcion', 'cuenta_contable')
+
+
+@admin.register(AsientoContableIntegracion)
+class AsientoContableIntegracionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'orden_compra', 'descripcion', 'auxiliar_id', 'monto_total',
+        'ws_estado_envio', 'ws_asiento_id', 'ws_fecha_envio',
+    )
+    list_filter = ('ws_estado_envio', 'estado')
+    search_fields = ('descripcion', 'orden_compra__id', 'ws_error')

@@ -43,6 +43,30 @@ python manage.py runserver
 - **API Asientos Contables:** http://127.0.0.1:8000/api/asientos/
 - **Login API (Browsable API):** http://127.0.0.1:8000/api-auth/login/
 
+## Integracion con WS Contable
+
+La app puede enviar automaticamente los asientos al WS contable cuando una orden cambia a estado `Completada`.
+
+### Campos enviados (minimos necesarios)
+
+- `descripcion`
+- `auxiliar.id`
+- `fechaAsiento`
+- `montoTotal`
+- `detalles` (2 lineas: Debito y Credito)
+- `estado`
+
+### Trazabilidad local
+
+Cada `AsientoContable` guarda:
+
+- estado de envio (`Pendiente`, `Enviado`, `Error`)
+- id remoto del asiento
+- fecha de envio
+- mensaje de error
+
+Esto permite detectar y corregir incompatibilidades de mapeo sin perder el asiento local.
+
 ## Equipo
 
 - **Profesor:** Juan P. Valdez

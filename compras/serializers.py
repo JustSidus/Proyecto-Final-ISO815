@@ -15,4 +15,8 @@ class AsientoContableSerializer(serializers.ModelSerializer):
             'fecha',
             'monto',
             'estado',
+            'ws_estado_envio',
+            'ws_asiento_id',
+            'ws_fecha_envio',
+            'ws_error',
         ]
