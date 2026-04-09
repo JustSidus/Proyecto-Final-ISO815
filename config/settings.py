@@ -103,11 +103,18 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+APPLICATIONINSIGHTS_CONNECTION_STRING = os.environ.get('APPLICATIONINSIGHTS_CONNECTION_STRING')
+if not APPLICATIONINSIGHTS_CONNECTION_STRING:
+    instrumentation_key = os.environ.get('APPINSIGHTS_INSTRUMENTATIONKEY')
+    if instrumentation_key:
+        APPLICATIONINSIGHTS_CONNECTION_STRING = f'InstrumentationKey={instrumentation_key}'
+
 # Application Insights - Instrumentación para telemetría en Azure
 OPENCENSUS = {
-    'trace': {
-        'sampler': 'opencensus.trace.samplers.AlwaysOnSampler()',
-        'exporter': 'opencensus.ext.azure.trace_exporter.AzureExporter()',
+    'TRACE': {
+        'SAMPLER': 'opencensus.trace.samplers.ProbabilitySampler(rate=1.0)',
+        'EXPORTER': 'opencensus.ext.azure.trace_exporter.AzureExporter(connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING)',
     },
 }
 
