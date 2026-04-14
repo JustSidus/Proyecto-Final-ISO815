@@ -9,7 +9,7 @@ from django.db.models import CharField, DecimalField, ExpressionWrapper, F, Q, S
 from django.db.models.functions import Cast, Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, TemplateView, UpdateView,
@@ -99,6 +99,15 @@ def _anotar_total_ordenes(queryset):
             output_field=DecimalField(max_digits=14, decimal_places=2),
         )
     )
+
+
+ORDEN_ESTADOS_KANBAN = (
+    (OrdenCompra.ESTADO_PENDIENTE, 'pendientes'),
+    (OrdenCompra.ESTADO_APROBADA, 'aprobadas'),
+    (OrdenCompra.ESTADO_COMPLETADA, 'completadas'),
+    (OrdenCompra.ESTADO_RECHAZADA, 'rechazadas'),
+)
+ORDEN_ESTADOS_VALIDOS = {estado for estado, _ in ORDEN_ESTADOS_KANBAN}
 
 
 # ── Inicio ────────────────────────────────────────────────────────────────────
@@ -314,9 +323,7 @@ class OrdenCompraListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ordenes = list(ctx['ordenes'])
-        for orden in ordenes:
-            orden.transiciones_disponibles = _transiciones_disponibles(orden.estado)
+        base_queryset = ctx['ordenes']
 
         ctx['filtro_proveedor'] = self.filtro_proveedor
         ctx['filtro_orden'] = self.filtro_orden
@@ -328,29 +335,24 @@ class OrdenCompraListView(LoginRequiredMixin, ListView):
             .order_by('nombre_comercial')
         )
 
-        pendientes = [o for o in ordenes if o.estado == OrdenCompra.ESTADO_PENDIENTE]
-        aprobadas = [o for o in ordenes if o.estado == OrdenCompra.ESTADO_APROBADA]
-        completadas = [o for o in ordenes if o.estado == OrdenCompra.ESTADO_COMPLETADA]
-        rechazadas = [o for o in ordenes if o.estado == OrdenCompra.ESTADO_RECHAZADA]
-
         limite = self.kanban_visible_limit
         ctx['kanban_visible_limit'] = limite
 
-        ctx['ordenes_pendientes_total'] = len(pendientes)
-        ctx['ordenes_pendientes_visibles'] = pendientes[:limite]
-        ctx['ordenes_pendientes_archivadas'] = pendientes[limite:]
+        for estado, sufijo in ORDEN_ESTADOS_KANBAN:
+            estado_qs = base_queryset.filter(estado=estado).order_by('id')
+            total = estado_qs.count()
+            visibles = list(estado_qs[:limite])
+            for orden in visibles:
+                orden.transiciones_disponibles = _transiciones_disponibles(orden.estado)
 
-        ctx['ordenes_aprobadas_total'] = len(aprobadas)
-        ctx['ordenes_aprobadas_visibles'] = aprobadas[:limite]
-        ctx['ordenes_aprobadas_archivadas'] = aprobadas[limite:]
+            archivadas_count = max(total - limite, 0)
 
-        ctx['ordenes_completadas_total'] = len(completadas)
-        ctx['ordenes_completadas_visibles'] = completadas[:limite]
-        ctx['ordenes_completadas_archivadas'] = completadas[limite:]
+            ctx[f'ordenes_{sufijo}_total'] = total
+            ctx[f'ordenes_{sufijo}_visibles'] = visibles
+            ctx[f'ordenes_{sufijo}_archivadas_count'] = archivadas_count
 
-        ctx['ordenes_rechazadas_total'] = len(rechazadas)
-        ctx['ordenes_rechazadas_visibles'] = rechazadas[:limite]
-        ctx['ordenes_rechazadas_archivadas'] = rechazadas[limite:]
+            # Compatibilidad temporal con plantillas/tests que aún referencian esta clave.
+            ctx[f'ordenes_{sufijo}_archivadas'] = []
         return ctx
 
 
@@ -406,6 +408,68 @@ class OrdenCompraAutocompleteView(LoginRequiredMixin, View):
             for orden in ordenados[:self.max_resultados]
         ]
         return JsonResponse({'results': resultados})
+
+
+class OrdenCompraArchivadasView(LoginRequiredMixin, View):
+    limite_default = OrdenCompraListView.limite_default
+    limite_opciones = OrdenCompraListView.limite_opciones
+    max_resultados = 200
+
+    def _resolver_limite(self, request):
+        valor = (request.GET.get('limite') or '').strip()
+        if not valor:
+            return self.limite_default
+        try:
+            limite = int(valor)
+        except ValueError:
+            return self.limite_default
+        if limite not in self.limite_opciones:
+            return self.limite_default
+        return limite
+
+    def get(self, request):
+        estado = (request.GET.get('estado') or '').strip().upper()
+        if estado not in ORDEN_ESTADOS_VALIDOS:
+            return JsonResponse({'ok': False, 'error': 'Estado inválido.'}, status=400)
+
+        filtro_proveedor = (request.GET.get('proveedor') or '').strip()
+        filtro_orden = (request.GET.get('orden') or '').strip()
+        limite_visible = self._resolver_limite(request)
+
+        queryset = (
+            OrdenCompra.objects
+            .select_related('proveedor', 'departamento')
+            .order_by('id')
+        )
+        queryset = _aplicar_filtros_ordenes(queryset, filtro_proveedor, filtro_orden)
+        queryset = queryset.filter(estado=estado)
+
+        total_estado = queryset.count()
+        archivadas_total = max(total_estado - limite_visible, 0)
+        if archivadas_total <= 0:
+            return JsonResponse({'ok': True, 'results': [], 'archivadas_total': 0, 'truncated': False})
+
+        archivadas = list(queryset[limite_visible:limite_visible + self.max_resultados])
+        resultados = []
+        for orden in archivadas:
+            resultados.append({
+                'id': orden.pk,
+                'codigo': f'OC-{orden.pk:05d}',
+                'fecha_orden': orden.fecha_orden.isoformat(),
+                'proveedor': orden.proveedor.nombre_comercial,
+                'departamento': orden.departamento.nombre,
+                'transiciones_disponibles': _transiciones_disponibles(orden.estado),
+                'detail_url': reverse('compras:orden-detail', kwargs={'pk': orden.pk}),
+                'update_url': reverse('compras:orden-update', kwargs={'pk': orden.pk}) if orden.estado == OrdenCompra.ESTADO_PENDIENTE else None,
+                'delete_url': reverse('compras:orden-delete', kwargs={'pk': orden.pk}),
+            })
+
+        return JsonResponse({
+            'ok': True,
+            'results': resultados,
+            'archivadas_total': archivadas_total,
+            'truncated': archivadas_total > len(resultados),
+        })
 
 
 class OrdenCompraBacklogView(LoginRequiredMixin, ListView):

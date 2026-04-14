@@ -117,10 +117,17 @@ if APPLICATIONINSIGHTS_CONNECTION_STRING:
 else:
     opencensus_exporter = 'opencensus.ext.azure.trace_exporter.AzureExporter()'
 
+trace_sampler_rate_default = '0.2' if IS_PRODUCTION else '1.0'
+try:
+    trace_sampler_rate = float(os.environ.get('APPINSIGHTS_TRACE_SAMPLER_RATE', trace_sampler_rate_default))
+except ValueError:
+    trace_sampler_rate = float(trace_sampler_rate_default)
+trace_sampler_rate = max(0.01, min(trace_sampler_rate, 1.0))
+
 # Application Insights - Instrumentación para telemetría en Azure
 OPENCENSUS = {
     'TRACE': {
-        'SAMPLER': 'opencensus.trace.samplers.ProbabilitySampler(rate=1.0)',
+        'SAMPLER': f'opencensus.trace.samplers.ProbabilitySampler(rate={trace_sampler_rate})',
         'EXPORTER': opencensus_exporter,
     },
 }
@@ -165,6 +172,7 @@ if IS_PRODUCTION:
         'NAME': azure_sql_db,
         'HOST': azure_sql_server,
         'PORT': '1433',
+        'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '120')),
         'OPTIONS': {
             'driver': azure_sql_odbc_driver,
             'extra_params': 'Authentication=ActiveDirectoryMsi;Encrypt=yes;TrustServerCertificate=no',
@@ -258,6 +266,7 @@ REST_FRAMEWORK = {
 WS_CONTABLE_ENABLED = env_bool('WS_CONTABLE_ENABLED', False)
 WS_CONTABLE_BASE_URL = os.environ.get('WS_CONTABLE_BASE_URL', 'http://151.242.194.24:3000').strip()
 WS_CONTABLE_TIMEOUT = float(os.environ.get('WS_CONTABLE_TIMEOUT', '10'))
+WS_CONTABLE_SYNC_MODE = os.environ.get('WS_CONTABLE_SYNC_MODE', 'thread' if IS_PRODUCTION else 'inline').strip().lower()
 WS_CONTABLE_AUXILIAR_ID = int(os.environ.get('WS_CONTABLE_AUXILIAR_ID', '7'))
 WS_CONTABLE_CUENTA_DEBITO_ID = int(os.environ.get('WS_CONTABLE_CUENTA_DEBITO_ID', '2'))
 WS_CONTABLE_CUENTA_CREDITO_ID = int(os.environ.get('WS_CONTABLE_CUENTA_CREDITO_ID', '1'))

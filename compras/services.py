@@ -1,9 +1,10 @@
 import json
+import threading
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import close_old_connections, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -231,6 +232,24 @@ def _sincronizar_asiento_ws_contable(orden_id):
     _actualizar_estado_ws(orden, AsientoContable.WS_ENVIADO, '', ws_asiento_id)
 
 
+def _sincronizar_asiento_ws_en_hilo(orden_id):
+    close_old_connections()
+    try:
+        _sincronizar_asiento_ws_contable(orden_id)
+    finally:
+        close_old_connections()
+
+
+def _programar_sincronizacion_ws(orden_id):
+    modo_sync = str(getattr(settings, 'WS_CONTABLE_SYNC_MODE', 'inline') or 'inline').strip().lower()
+    if modo_sync == 'thread':
+        hilo = threading.Thread(target=_sincronizar_asiento_ws_en_hilo, args=(orden_id,), daemon=True)
+        hilo.start()
+        return
+
+    _sincronizar_asiento_ws_contable(orden_id)
+
+
 def cambiar_estado_orden(orden, nuevo_estado):
     estados_validos = {codigo for codigo, _ in OrdenCompra.ESTADO_CHOICES}
     if nuevo_estado not in estados_validos:
@@ -268,7 +287,7 @@ def cambiar_estado_orden(orden, nuevo_estado):
             enviar_ws = True
 
         if enviar_ws:
-            transaction.on_commit(lambda: _sincronizar_asiento_ws_contable(orden.pk))
+            transaction.on_commit(lambda: _programar_sincronizacion_ws(orden.pk))
 
     return orden
 

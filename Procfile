@@ -1,1 +1,1 @@
-web: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi --log-file -
+web: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi --workers 2 --threads 2 --worker-class gthread --bind 0.0.0.0:8000 --timeout 60 --access-logfile - --max-requests 1000 --max-requests-jitter 100 --keep-alive 5

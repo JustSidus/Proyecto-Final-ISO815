@@ -150,6 +150,7 @@ class OrdenCompra(models.Model):
         max_length=2,
         choices=ESTADO_CHOICES,
         default=ESTADO_PENDIENTE,
+        db_index=True,
         verbose_name='Estado',
     )
     proveedor = models.ForeignKey(

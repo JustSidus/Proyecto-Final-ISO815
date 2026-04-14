@@ -70,7 +70,7 @@
       <div class="card-header bg-warning-subtle fw-semibold">Pendientes ({{ ordenes_pendientes_total }})</div>
       <div class="card-body kanban-dropzone" data-estado="PE">
         {% for o in ordenes_pendientes_visibles %}
-        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}" data-transiciones="{% for t in o.transiciones_disponibles %}{{ t.codigo }}{% if not forloop.last %},{% endif %}{% endfor %}">
           <div class="card-body p-2">
             <div class="d-flex justify-content-between">
               <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
@@ -87,13 +87,20 @@
           </div>
         </div>
         {% empty %}
-        <div class="text-muted small">Sin órdenes pendientes.</div>
+        <div class="text-muted small js-empty-column">Sin órdenes pendientes.</div>
         {% endfor %}
       </div>
-      {% if ordenes_pendientes_archivadas %}
+      {% if ordenes_pendientes_archivadas_count %}
       <div class="card-footer bg-white border-top">
-        <button type="button" class="btn btn-sm btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasPendientes">
-          Archivadas ({{ ordenes_pendientes_archivadas|length }})
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-warning w-100 js-open-archivadas"
+          data-estado="PE"
+          data-estado-label="Pendientes"
+          data-bs-toggle="modal"
+          data-bs-target="#modalArchivadas"
+        >
+          Archivadas ({{ ordenes_pendientes_archivadas_count }})
         </button>
       </div>
       {% endif %}
@@ -105,7 +112,7 @@
       <div class="card-header bg-success-subtle fw-semibold">Aprobadas ({{ ordenes_aprobadas_total }})</div>
       <div class="card-body kanban-dropzone" data-estado="AP">
         {% for o in ordenes_aprobadas_visibles %}
-        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}" data-transiciones="{% for t in o.transiciones_disponibles %}{{ t.codigo }}{% if not forloop.last %},{% endif %}{% endfor %}">
           <div class="card-body p-2">
             <div class="d-flex justify-content-between">
               <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
@@ -121,13 +128,20 @@
           </div>
         </div>
         {% empty %}
-        <div class="text-muted small">Sin órdenes aprobadas.</div>
+        <div class="text-muted small js-empty-column">Sin órdenes aprobadas.</div>
         {% endfor %}
       </div>
-      {% if ordenes_aprobadas_archivadas %}
+      {% if ordenes_aprobadas_archivadas_count %}
       <div class="card-footer bg-white border-top">
-        <button type="button" class="btn btn-sm btn-outline-success w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasAprobadas">
-          Archivadas ({{ ordenes_aprobadas_archivadas|length }})
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-success w-100 js-open-archivadas"
+          data-estado="AP"
+          data-estado-label="Aprobadas"
+          data-bs-toggle="modal"
+          data-bs-target="#modalArchivadas"
+        >
+          Archivadas ({{ ordenes_aprobadas_archivadas_count }})
         </button>
       </div>
       {% endif %}
@@ -139,7 +153,7 @@
       <div class="card-header bg-primary-subtle fw-semibold">Completadas ({{ ordenes_completadas_total }})</div>
       <div class="card-body kanban-dropzone" data-estado="CO">
         {% for o in ordenes_completadas_visibles %}
-        <div class="card mb-2 kanban-card" draggable="false" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+        <div class="card mb-2 kanban-card" draggable="false" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}" data-transiciones="{% for t in o.transiciones_disponibles %}{{ t.codigo }}{% if not forloop.last %},{% endif %}{% endfor %}">
           <div class="card-body p-2">
             <div class="d-flex justify-content-between">
               <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
@@ -155,13 +169,20 @@
           </div>
         </div>
         {% empty %}
-        <div class="text-muted small">Sin órdenes completadas.</div>
+        <div class="text-muted small js-empty-column">Sin órdenes completadas.</div>
         {% endfor %}
       </div>
-      {% if ordenes_completadas_archivadas %}
+      {% if ordenes_completadas_archivadas_count %}
       <div class="card-footer bg-white border-top">
-        <button type="button" class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasCompletadas">
-          Archivadas ({{ ordenes_completadas_archivadas|length }})
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary w-100 js-open-archivadas"
+          data-estado="CO"
+          data-estado-label="Completadas"
+          data-bs-toggle="modal"
+          data-bs-target="#modalArchivadas"
+        >
+          Archivadas ({{ ordenes_completadas_archivadas_count }})
         </button>
       </div>
       {% endif %}
@@ -173,7 +194,7 @@
       <div class="card-header bg-danger-subtle fw-semibold">Rechazadas ({{ ordenes_rechazadas_total }})</div>
       <div class="card-body kanban-dropzone" data-estado="RE">
         {% for o in ordenes_rechazadas_visibles %}
-        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}">
+        <div class="card mb-2 kanban-card" draggable="true" data-orden-id="{{ o.pk }}" data-estado="{{ o.estado }}" data-transiciones="{% for t in o.transiciones_disponibles %}{{ t.codigo }}{% if not forloop.last %},{% endif %}{% endfor %}">
           <div class="card-body p-2">
             <div class="d-flex justify-content-between">
               <strong>OC-{{ o.pk|stringformat:"05d" }}</strong>
@@ -187,13 +208,20 @@
           </div>
         </div>
         {% empty %}
-        <div class="text-muted small">Sin órdenes rechazadas.</div>
+        <div class="text-muted small js-empty-column">Sin órdenes rechazadas.</div>
         {% endfor %}
       </div>
-      {% if ordenes_rechazadas_archivadas %}
+      {% if ordenes_rechazadas_archivadas_count %}
       <div class="card-footer bg-white border-top">
-        <button type="button" class="btn btn-sm btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#modalArchivadasRechazadas">
-          Archivadas ({{ ordenes_rechazadas_archivadas|length }})
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-danger w-100 js-open-archivadas"
+          data-estado="RE"
+          data-estado-label="Rechazadas"
+          data-bs-toggle="modal"
+          data-bs-target="#modalArchivadas"
+        >
+          Archivadas ({{ ordenes_rechazadas_archivadas_count }})
         </button>
       </div>
       {% endif %}
@@ -201,182 +229,30 @@
   </div>
 </div>
 
-{% if ordenes_pendientes_archivadas %}
-<div class="modal fade" id="modalArchivadasPendientes" tabindex="-1" aria-labelledby="modalArchivadasPendientesLabel" aria-hidden="true">
+<div class="modal fade" id="modalArchivadas" tabindex="-1" aria-labelledby="modalArchivadasLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="modalArchivadasPendientesLabel">Órdenes Pendientes Archivadas</h5>
+        <h5 class="modal-title" id="modalArchivadasLabel">Órdenes Archivadas</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-0">
         <div class="table-responsive">
           <table class="table table-sm mb-0">
             <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
-            <tbody>
-              {% for o in ordenes_pendientes_archivadas %}
-              <tr>
-                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
-                <td>{{ o.fecha_orden }}</td>
-                <td>{{ o.proveedor.nombre_comercial }}</td>
-                <td>{{ o.departamento.nombre }}</td>
-                <td class="text-end">
-                  {% if o.transiciones_disponibles %}
-                  <div class="dropdown d-inline-block">
-                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                      {% for t in o.transiciones_disponibles %}
-                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                  {% endif %}
-                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
-                  <a href="{% url 'compras:orden-update' o.pk %}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>
-                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
-                </td>
-              </tr>
-              {% endfor %}
+            <tbody id="tabla-archivadas-body">
+              <tr><td colspan="5" class="text-center text-muted py-3">Selecciona una columna para cargar archivadas.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-{% if ordenes_aprobadas_archivadas %}
-<div class="modal fade" id="modalArchivadasAprobadas" tabindex="-1" aria-labelledby="modalArchivadasAprobadasLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalArchivadasAprobadasLabel">Órdenes Aprobadas Archivadas</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-0">
-        <div class="table-responsive">
-          <table class="table table-sm mb-0">
-            <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
-            <tbody>
-              {% for o in ordenes_aprobadas_archivadas %}
-              <tr>
-                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
-                <td>{{ o.fecha_orden }}</td>
-                <td>{{ o.proveedor.nombre_comercial }}</td>
-                <td>{{ o.departamento.nombre }}</td>
-                <td class="text-end">
-                  {% if o.transiciones_disponibles %}
-                  <div class="dropdown d-inline-block">
-                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                      {% for t in o.transiciones_disponibles %}
-                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                  {% endif %}
-                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
-                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <small id="tabla-archivadas-info" class="text-muted"></small>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>
 </div>
-{% endif %}
-
-{% if ordenes_completadas_archivadas %}
-<div class="modal fade" id="modalArchivadasCompletadas" tabindex="-1" aria-labelledby="modalArchivadasCompletadasLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalArchivadasCompletadasLabel">Órdenes Completadas Archivadas</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-0">
-        <div class="table-responsive">
-          <table class="table table-sm mb-0">
-            <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
-            <tbody>
-              {% for o in ordenes_completadas_archivadas %}
-              <tr>
-                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
-                <td>{{ o.fecha_orden }}</td>
-                <td>{{ o.proveedor.nombre_comercial }}</td>
-                <td>{{ o.departamento.nombre }}</td>
-                <td class="text-end">
-                  {% if o.transiciones_disponibles %}
-                  <div class="dropdown d-inline-block">
-                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                      {% for t in o.transiciones_disponibles %}
-                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                  {% endif %}
-                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
-                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-{% if ordenes_rechazadas_archivadas %}
-<div class="modal fade" id="modalArchivadasRechazadas" tabindex="-1" aria-labelledby="modalArchivadasRechazadasLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalArchivadasRechazadasLabel">Órdenes Rechazadas Archivadas</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-0">
-        <div class="table-responsive">
-          <table class="table table-sm mb-0">
-            <thead class="table-light"><tr><th>N°</th><th>Fecha</th><th>Proveedor</th><th>Departamento</th><th class="text-end">Acciones</th></tr></thead>
-            <tbody>
-              {% for o in ordenes_rechazadas_archivadas %}
-              <tr>
-                <td>OC-{{ o.pk|stringformat:"05d" }}</td>
-                <td>{{ o.fecha_orden }}</td>
-                <td>{{ o.proveedor.nombre_comercial }}</td>
-                <td>{{ o.departamento.nombre }}</td>
-                <td class="text-end">
-                  {% if o.transiciones_disponibles %}
-                  <div class="dropdown d-inline-block">
-                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                      {% for t in o.transiciones_disponibles %}
-                      <li><button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="{{ o.pk }}" data-estado="{{ t.codigo }}">{{ t.label }}</button></li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                  {% endif %}
-                  <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
-                  <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -395,6 +271,7 @@
       RE: { label: 'Rechazada', badgeClass: 'bg-danger', emptyText: 'Sin órdenes rechazadas.', draggable: true },
     };
     const autocompleteUrl = "{% url 'compras:orden-autocomplete' %}";
+    const archivadasUrl = "{% url 'compras:orden-archivadas' %}";
 
     function getCookie(name) {
       const cookieValue = document.cookie
@@ -404,7 +281,20 @@
     }
 
     const csrfToken = getCookie('csrftoken');
+    const tablaArchivadasBody = document.getElementById('tabla-archivadas-body');
+    const tablaArchivadasInfo = document.getElementById('tabla-archivadas-info');
+    const modalArchivadasLabel = document.getElementById('modalArchivadasLabel');
     let draggingCard = null;
+    let archivadasRequestKey = '';
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
     function actualizarContadorColumna(zone, delta) {
       if (!zone || !delta) return;
@@ -437,11 +327,41 @@
       }
     }
 
-    function actualizarVisualTarjeta(card, estado) {
+    function extraerCodigosTransicion(rawValue) {
+      if (!rawValue) {
+        return [];
+      }
+
+      return String(rawValue)
+        .split(',')
+        .map((item) => item.trim().toUpperCase())
+        .filter(Boolean);
+    }
+
+    function codigosDesdePayload(payload) {
+      return (payload?.transiciones_disponibles || [])
+        .map((item) => String(item?.codigo || '').toUpperCase())
+        .filter(Boolean);
+    }
+
+    function transicionesDisponiblesTarjeta(card) {
+      const desdeData = extraerCodigosTransicion(card?.dataset?.transiciones || '');
+      if (desdeData.length) {
+        return desdeData;
+      }
+
+      return transitionRules[card?.dataset?.estado] || [];
+    }
+
+    function actualizarVisualTarjeta(card, estado, transiciones = null) {
       const ui = estadoUi[estado];
       if (!ui) return;
 
       card.dataset.estado = estado;
+      const siguientes = Array.isArray(transiciones)
+        ? transiciones
+        : (transitionRules[estado] || []);
+      card.dataset.transiciones = siguientes.join(',');
       card.setAttribute('draggable', ui.draggable ? 'true' : 'false');
 
       const badge = card.querySelector('.badge');
@@ -458,7 +378,7 @@
       }
     }
 
-    function moverTarjetaKanban(card, estadoOrigen, estadoDestino) {
+    function moverTarjetaKanban(card, estadoOrigen, estadoDestino, options = {}) {
       const zonaOrigen = document.querySelector(`.kanban-dropzone[data-estado="${estadoOrigen}"]`);
       const zonaDestino = document.querySelector(`.kanban-dropzone[data-estado="${estadoDestino}"]`);
       if (!card || !zonaDestino) {
@@ -466,7 +386,7 @@
       }
 
       zonaDestino.appendChild(card);
-      actualizarVisualTarjeta(card, estadoDestino);
+      actualizarVisualTarjeta(card, estadoDestino, options.transiciones);
 
       if (zonaOrigen !== zonaDestino) {
         actualizarContadorColumna(zonaOrigen, -1);
@@ -507,6 +427,123 @@
       }
     }
 
+    function construirAccionesArchivada(item) {
+      const transiciones = Array.isArray(item.transiciones_disponibles)
+        ? item.transiciones_disponibles
+        : [];
+
+      let moverHtml = '';
+      if (transiciones.length) {
+        const opciones = transiciones
+          .map((t) => `
+            <li>
+              <button type="button" class="dropdown-item js-cambiar-estado" data-orden-id="${item.id}" data-estado="${escapeHtml(t.codigo)}">
+                ${escapeHtml(t.label)}
+              </button>
+            </li>
+          `)
+          .join('');
+
+        moverHtml = `
+          <div class="dropdown d-inline-block">
+            <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">Mover</button>
+            <ul class="dropdown-menu dropdown-menu-end">${opciones}</ul>
+          </div>
+        `;
+      }
+
+      const editHtml = item.update_url
+        ? `<a href="${escapeHtml(item.update_url)}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>`
+        : '';
+
+      return `
+        ${moverHtml}
+        <a href="${escapeHtml(item.detail_url)}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+        ${editHtml}
+        <a href="${escapeHtml(item.delete_url)}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+      `;
+    }
+
+    function renderizarArchivadas(items) {
+      if (!tablaArchivadasBody) {
+        return;
+      }
+
+      if (!Array.isArray(items) || items.length === 0) {
+        tablaArchivadasBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Sin órdenes archivadas para este filtro.</td></tr>';
+        return;
+      }
+
+      tablaArchivadasBody.innerHTML = items
+        .map((item) => `
+          <tr>
+            <td>${escapeHtml(item.codigo)}</td>
+            <td>${escapeHtml(item.fecha_orden)}</td>
+            <td>${escapeHtml(item.proveedor)}</td>
+            <td>${escapeHtml(item.departamento)}</td>
+            <td class="text-end">${construirAccionesArchivada(item)}</td>
+          </tr>
+        `)
+        .join('');
+    }
+
+    async function cargarArchivadas(estado, estadoLabel) {
+      if (!tablaArchivadasBody || !tablaArchivadasInfo || !modalArchivadasLabel) {
+        return;
+      }
+
+      const url = new URL(archivadasUrl, window.location.origin);
+      url.searchParams.set('estado', estado);
+
+      const filtrosActuales = new URLSearchParams(window.location.search);
+      ['proveedor', 'orden', 'limite'].forEach((key) => {
+        if (filtrosActuales.get(key)) {
+          url.searchParams.set(key, filtrosActuales.get(key));
+        }
+      });
+
+      const requestKey = `${estado}|${url.search}`;
+      archivadasRequestKey = requestKey;
+
+      modalArchivadasLabel.textContent = `Órdenes ${estadoLabel} Archivadas`;
+      tablaArchivadasBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Cargando archivadas...</td></tr>';
+      tablaArchivadasInfo.textContent = '';
+
+      try {
+        const response = await fetch(url.toString());
+        const payload = await response.json();
+
+        if (archivadasRequestKey !== requestKey) {
+          return;
+        }
+
+        if (!response.ok || !payload.ok) {
+          tablaArchivadasBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">${escapeHtml(payload.error || 'No se pudieron cargar archivadas.')}</td></tr>`;
+          return;
+        }
+
+        renderizarArchivadas(payload.results || []);
+
+        const truncado = payload.truncated ? ' Mostrando una parte de los resultados.' : '';
+        tablaArchivadasInfo.textContent = `Archivadas: ${payload.archivadas_total || 0}.${truncado}`;
+      } catch (error) {
+        if (archivadasRequestKey === requestKey) {
+          tablaArchivadasBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Error de red al cargar archivadas.</td></tr>';
+        }
+      }
+    }
+
+    document.querySelectorAll('.js-open-archivadas').forEach((boton) => {
+      boton.addEventListener('click', function () {
+        const estado = (this.dataset.estado || '').toUpperCase();
+        const estadoLabel = this.dataset.estadoLabel || 'Archivadas';
+        if (!estado) {
+          return;
+        }
+        cargarArchivadas(estado, estadoLabel);
+      });
+    });
+
     document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
       card.addEventListener('dragstart', function () {
         draggingCard = card;
@@ -539,17 +576,18 @@
         const orderId = card.dataset.ordenId;
         const currentState = card.dataset.estado;
         const nextState = zone.dataset.estado;
+        const transicionesOriginales = transicionesDisponiblesTarjeta(card);
 
         if (!orderId || !currentState || !nextState || currentState === nextState) {
           return;
         }
 
-        if (!transitionRules[currentState] || !transitionRules[currentState].includes(nextState)) {
+        if (!transicionesOriginales.includes(nextState)) {
           alert('Transición no permitida para esta orden.');
           return;
         }
 
-        if (!moverTarjetaKanban(card, currentState, nextState)) {
+        if (!moverTarjetaKanban(card, currentState, nextState, { transiciones: transitionRules[nextState] || [] })) {
           return;
         }
 
@@ -558,13 +596,16 @@
         card.classList.remove('opacity-75');
 
         if (!payload) {
-          moverTarjetaKanban(card, nextState, currentState);
+          moverTarjetaKanban(card, nextState, currentState, { transiciones: transicionesOriginales });
           return;
         }
 
         const estadoConfirmado = payload.estado || nextState;
+        const transicionesConfirmadas = codigosDesdePayload(payload);
         if (estadoConfirmado !== nextState) {
-          moverTarjetaKanban(card, nextState, estadoConfirmado);
+          moverTarjetaKanban(card, nextState, estadoConfirmado, { transiciones: transicionesConfirmadas });
+        } else {
+          actualizarVisualTarjeta(card, estadoConfirmado, transicionesConfirmadas);
         }
       });
     });

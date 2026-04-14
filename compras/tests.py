@@ -248,16 +248,71 @@ class KanbanArchivadasContextTests(TestCase):
 		self.assertEqual(response.context['kanban_visible_limit'], 5)
 
 		self.assertEqual(len(response.context['ordenes_pendientes_visibles']), 5)
-		self.assertEqual(len(response.context['ordenes_pendientes_archivadas']), 2)
+		self.assertEqual(response.context['ordenes_pendientes_archivadas_count'], 2)
 
 		self.assertEqual(len(response.context['ordenes_aprobadas_visibles']), 5)
-		self.assertEqual(len(response.context['ordenes_aprobadas_archivadas']), 2)
+		self.assertEqual(response.context['ordenes_aprobadas_archivadas_count'], 2)
 
 		self.assertEqual(len(response.context['ordenes_completadas_visibles']), 5)
-		self.assertEqual(len(response.context['ordenes_completadas_archivadas']), 2)
+		self.assertEqual(response.context['ordenes_completadas_archivadas_count'], 2)
 
 		self.assertEqual(len(response.context['ordenes_rechazadas_visibles']), 5)
-		self.assertEqual(len(response.context['ordenes_rechazadas_archivadas']), 2)
+		self.assertEqual(response.context['ordenes_rechazadas_archivadas_count'], 2)
+
+
+class OrdenCompraArchivadasApiTests(TestCase):
+	def setUp(self):
+		self.usuario = User.objects.create_user(username='arch-user', password='clave-segura')
+		self.client.login(username='arch-user', password='clave-segura')
+
+		self.departamento = Departamento.objects.create(nombre='Depto Archivadas', estado=True)
+		self.unidad = UnidadMedida.objects.create(descripcion='Unidad', estado=True)
+		self.proveedor = Proveedor.objects.create(
+			tipo_documento=Proveedor.TIPO_RNC,
+			cedula_rnc=construir_rnc_valido('20100002'),
+			nombre_comercial='Proveedor Archivadas',
+			estado=True,
+		)
+		self.articulo = Articulo.objects.create(
+			descripcion='Articulo Archivadas',
+			marca='Marca Archivadas',
+			unidad_medida=self.unidad,
+			existencia=100,
+			estado=True,
+		)
+
+	def _crear_orden(self, estado):
+		orden = OrdenCompra.objects.create(
+			proveedor=self.proveedor,
+			departamento=self.departamento,
+			estado=estado,
+		)
+		OrdenCompraDetalle.objects.create(
+			orden=orden,
+			articulo=self.articulo,
+			cantidad=1,
+			unidad_medida=self.unidad,
+			costo_unitario=10,
+		)
+		return orden
+
+	def test_archivadas_endpoint_retorna_solo_archivadas(self):
+		for _ in range(7):
+			self._crear_orden(OrdenCompra.ESTADO_PENDIENTE)
+
+		response = self.client.get(reverse('compras:orden-archivadas'), {'estado': 'PE', 'limite': 5})
+
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertTrue(payload['ok'])
+		self.assertEqual(payload['archivadas_total'], 2)
+		self.assertEqual(len(payload['results']), 2)
+
+	def test_archivadas_endpoint_valida_estado(self):
+		response = self.client.get(reverse('compras:orden-archivadas'), {'estado': 'XX'})
+
+		self.assertEqual(response.status_code, 400)
+		self.assertFalse(response.json()['ok'])
 
 
 class OrdenCompraAutocompleteTests(TestCase):
