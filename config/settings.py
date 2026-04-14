@@ -154,6 +154,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 if IS_PRODUCTION:
     azure_sql_db = os.environ.get('AZURE_SQL_DB')
     azure_sql_server = os.environ.get('AZURE_SQL_SERVER')
+    azure_sql_odbc_driver = os.environ.get('AZURE_SQL_ODBC_DRIVER', 'ODBC Driver 18 for SQL Server').strip()
     azure_sql_managed_identity_client_id = os.environ.get('AZURE_SQL_MANAGED_IDENTITY_CLIENT_ID')
 
     if not azure_sql_db or not azure_sql_server:
@@ -165,7 +166,7 @@ if IS_PRODUCTION:
         'HOST': azure_sql_server,
         'PORT': '1433',
         'OPTIONS': {
-            'driver': 'ODBC Driver 18 for SQL Server',
+            'driver': azure_sql_odbc_driver,
             'extra_params': 'Authentication=ActiveDirectoryMsi;Encrypt=yes;TrustServerCertificate=no',
             'connection_timeout': 30,
             'connection_retries': 5,
