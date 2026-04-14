@@ -35,13 +35,16 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+> Nota: por defecto este proyecto usa `127.0.0.1:8010` para no chocar con otras apps locales.
+> Puedes cambiarlo con `DJANGO_RUNSERVER_ADDRPORT` en `.env` o pasando el puerto en el comando.
+
 ## Acceder al sistema
 
-- **Sistema principal:** http://127.0.0.1:8000/
-- **Login web:** http://127.0.0.1:8000/login/
-- **Admin Django:** http://127.0.0.1:8000/admin/
-- **API Asientos Contables:** http://127.0.0.1:8000/api/asientos/
-- **Login API (Browsable API):** http://127.0.0.1:8000/api-auth/login/
+- **Sistema principal:** http://127.0.0.1:8010/
+- **Login web:** http://127.0.0.1:8010/login/
+- **Admin Django:** http://127.0.0.1:8010/admin/
+- **API Asientos Contables:** http://127.0.0.1:8010/api/asientos/
+- **Login API (Browsable API):** http://127.0.0.1:8010/api-auth/login/
 
 ## Integracion con WS Contable
 
@@ -55,6 +58,11 @@ La app puede enviar automaticamente los asientos al WS contable cuando una orden
 - `montoTotal`
 - `detalles` (2 lineas: Debito y Credito)
 - `estado`
+
+### Configuracion recomendada del WS
+
+- `WS_CONTABLE_BASE_URL=http://151.242.194.24:3000`
+- Si el host cambia de puerto y no defines uno explícito, la integración intentará fallback automático a `:3000` y `:8080`.
 
 ### Trazabilidad local
 

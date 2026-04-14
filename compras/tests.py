@@ -1,13 +1,16 @@
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APIClient
+from datetime import date
+from unittest.mock import patch
 
 from .models import (
 	Articulo,
 	AsientoContable,
+	AsientoContableIntegracion,
 	Departamento,
 	OrdenCompra,
 	OrdenCompraDetalle,
@@ -15,6 +18,7 @@ from .models import (
 	UnidadMedida,
 )
 from .services import cambiar_estado_orden
+from .ws_contable import WsContableError, construir_payload_asiento, _build_urls
 
 
 User = get_user_model()
@@ -254,6 +258,177 @@ class KanbanArchivadasContextTests(TestCase):
 
 		self.assertEqual(len(response.context['ordenes_rechazadas_visibles']), 5)
 		self.assertEqual(len(response.context['ordenes_rechazadas_archivadas']), 2)
+
+
+class IntegracionWsContablePayloadTests(TestCase):
+	def setUp(self):
+		self.departamento = Departamento.objects.create(nombre='Depto WS', estado=True)
+		self.unidad = UnidadMedida.objects.create(descripcion='Unidad', estado=True)
+		self.proveedor = Proveedor.objects.create(
+			tipo_documento=Proveedor.TIPO_RNC,
+			cedula_rnc=construir_rnc_valido('10100000'),
+			nombre_comercial='Proveedor WS',
+			estado=True,
+		)
+		self.orden = OrdenCompra.objects.create(
+			proveedor=self.proveedor,
+			departamento=self.departamento,
+			estado=OrdenCompra.ESTADO_COMPLETADA,
+		)
+		self.asiento_db = AsientoContable.objects.create(
+			descripcion='OC-00001 - Compra inventario',
+			tipo_inventario=1,
+			cuenta_contable='110101',
+			tipo_movimiento=AsientoContable.TIPO_DB,
+			fecha=date(2026, 4, 14),
+			monto='800.00',
+			estado=True,
+			orden_compra=self.orden,
+		)
+		self.asiento_cr = AsientoContable.objects.create(
+			descripcion='OC-00001 - CxP proveedor',
+			tipo_inventario=1,
+			cuenta_contable='210101',
+			tipo_movimiento=AsientoContable.TIPO_CR,
+			fecha=date(2026, 4, 14),
+			monto='800.00',
+			estado=True,
+			orden_compra=self.orden,
+		)
+
+	@override_settings(
+		WS_CONTABLE_AUXILIAR_ID=7,
+		WS_CONTABLE_CUENTA_DEBITO_ID=2,
+		WS_CONTABLE_CUENTA_CREDITO_ID=1,
+	)
+	def test_payload_incluye_todos_los_campos_requeridos(self):
+		payload = construir_payload_asiento(self.orden, self.asiento_db, self.asiento_cr)
+
+		self.assertEqual(payload['descripcion'], self.asiento_db.descripcion)
+		self.assertEqual(payload['auxiliar']['id'], 7)
+		self.assertEqual(payload['fechaAsiento'], '2026-04-14')
+		self.assertEqual(payload['montoTotal'], 800.0)
+		self.assertEqual(payload['estado'], True)
+
+		self.assertEqual(len(payload['detalles']), 2)
+		self.assertEqual(payload['detalles'][0]['cuenta']['id'], 2)
+		self.assertEqual(payload['detalles'][0]['tipoMovimiento'], 'Debito')
+		self.assertEqual(payload['detalles'][0]['monto'], 800.0)
+		self.assertEqual(payload['detalles'][1]['cuenta']['id'], 1)
+		self.assertEqual(payload['detalles'][1]['tipoMovimiento'], 'Credito')
+		self.assertEqual(payload['detalles'][1]['monto'], 800.0)
+
+	@override_settings(WS_CONTABLE_BASE_URL='http://151.242.194.24')
+	def test_ws_base_url_sin_puerto_habilita_fallback_3000_y_8080(self):
+		urls = _build_urls('/api/asientos')
+		self.assertEqual(urls[0], 'http://151.242.194.24/api/asientos')
+		self.assertIn('http://151.242.194.24:3000/api/asientos', urls)
+		self.assertIn('http://151.242.194.24:8080/api/asientos', urls)
+
+
+class IntegracionWsContableFlujoTests(TestCase):
+	def setUp(self):
+		self.departamento = Departamento.objects.create(nombre='Depto Flujo WS', estado=True)
+		self.unidad = UnidadMedida.objects.create(descripcion='Unidad', estado=True)
+		self.proveedor = Proveedor.objects.create(
+			tipo_documento=Proveedor.TIPO_RNC,
+			cedula_rnc=construir_rnc_valido('13181176'),
+			nombre_comercial='Proveedor Flujo WS',
+			estado=True,
+		)
+		self.articulo = Articulo.objects.create(
+			descripcion='Articulo Flujo WS',
+			marca='Marca WS',
+			unidad_medida=self.unidad,
+			existencia=100,
+			estado=True,
+		)
+
+	def _crear_orden(self):
+		orden = OrdenCompra.objects.create(
+			proveedor=self.proveedor,
+			departamento=self.departamento,
+			estado=OrdenCompra.ESTADO_PENDIENTE,
+		)
+		OrdenCompraDetalle.objects.create(
+			orden=orden,
+			articulo=self.articulo,
+			cantidad=3,
+			unidad_medida=self.unidad,
+			costo_unitario=100,
+		)
+		return orden
+
+	@override_settings(
+		WS_CONTABLE_ENABLED=True,
+		WS_CONTABLE_AUXILIAR_ID=7,
+		WS_CONTABLE_CUENTA_DEBITO_ID=2,
+		WS_CONTABLE_CUENTA_CREDITO_ID=1,
+	)
+	@patch('compras.services.enviar_payload', return_value=1234)
+	def test_completar_orden_envia_ws_y_actualiza_estados(self, mock_enviar):
+		orden = self._crear_orden()
+		cambiar_estado_orden(orden, OrdenCompra.ESTADO_APROBADA)
+
+		with self.captureOnCommitCallbacks(execute=True):
+			cambiar_estado_orden(orden, OrdenCompra.ESTADO_COMPLETADA)
+
+		self.assertEqual(mock_enviar.call_count, 1)
+		payload = mock_enviar.call_args.args[0]
+		self.assertEqual(payload['auxiliar']['id'], 7)
+		self.assertIn('descripcion', payload)
+		self.assertIn('fechaAsiento', payload)
+		self.assertEqual(len(payload['detalles']), 2)
+
+		integracion = AsientoContableIntegracion.objects.get(orden_compra=orden)
+		self.assertEqual(integracion.ws_estado_envio, AsientoContableIntegracion.WS_ENVIADO)
+		self.assertEqual(integracion.ws_asiento_id, 1234)
+		self.assertTrue(integracion.payload_json)
+
+		asientos = AsientoContable.objects.filter(orden_compra=orden)
+		self.assertEqual(asientos.count(), 2)
+		for asiento in asientos:
+			self.assertEqual(asiento.ws_estado_envio, AsientoContable.WS_ENVIADO)
+			self.assertEqual(asiento.ws_asiento_id, 1234)
+
+	@override_settings(
+		WS_CONTABLE_ENABLED=True,
+		WS_CONTABLE_AUXILIAR_ID=7,
+		WS_CONTABLE_CUENTA_DEBITO_ID=2,
+		WS_CONTABLE_CUENTA_CREDITO_ID=1,
+	)
+	@patch('compras.services.enviar_payload', side_effect=WsContableError('Falla de integración WS'))
+	def test_completar_orden_con_error_ws_guarda_trazabilidad(self, mock_enviar):
+		orden = self._crear_orden()
+		cambiar_estado_orden(orden, OrdenCompra.ESTADO_APROBADA)
+
+		with self.captureOnCommitCallbacks(execute=True):
+			cambiar_estado_orden(orden, OrdenCompra.ESTADO_COMPLETADA)
+
+		self.assertEqual(mock_enviar.call_count, 1)
+
+		integracion = AsientoContableIntegracion.objects.get(orden_compra=orden)
+		self.assertEqual(integracion.ws_estado_envio, AsientoContableIntegracion.WS_ERROR)
+		self.assertIn('Falla de integración WS', integracion.ws_error)
+
+		for asiento in AsientoContable.objects.filter(orden_compra=orden):
+			self.assertEqual(asiento.ws_estado_envio, AsientoContable.WS_ERROR)
+			self.assertIn('Falla de integración WS', asiento.ws_error)
+
+	@override_settings(WS_CONTABLE_ENABLED=False)
+	@patch('compras.services.enviar_payload')
+	def test_completar_orden_con_ws_deshabilitado_no_envia(self, mock_enviar):
+		orden = self._crear_orden()
+		cambiar_estado_orden(orden, OrdenCompra.ESTADO_APROBADA)
+
+		with self.captureOnCommitCallbacks(execute=True):
+			cambiar_estado_orden(orden, OrdenCompra.ESTADO_COMPLETADA)
+
+		mock_enviar.assert_not_called()
+		self.assertFalse(AsientoContableIntegracion.objects.filter(orden_compra=orden).exists())
+
+		for asiento in AsientoContable.objects.filter(orden_compra=orden):
+			self.assertEqual(asiento.ws_estado_envio, AsientoContable.WS_PENDIENTE)
 
 
 class AutenticacionSistemaTests(TestCase):

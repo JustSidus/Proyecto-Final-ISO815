@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 from urllib import error, request
+from urllib.parse import urlparse, urlunparse
 
 from django.conf import settings
 
@@ -13,11 +14,40 @@ class WsContableConfigError(WsContableError):
     """Configuración local inválida para integrar con el WS contable."""
 
 
-def _build_url(path):
+def _build_urls(path):
     base_url = getattr(settings, 'WS_CONTABLE_BASE_URL', '').strip().rstrip('/')
     if not base_url:
         raise WsContableConfigError('WS_CONTABLE_BASE_URL no está configurado.')
-    return f'{base_url}{path}'
+
+    parsed = urlparse(base_url if '://' in base_url else f'http://{base_url}')
+    if not parsed.netloc:
+        raise WsContableConfigError('WS_CONTABLE_BASE_URL debe incluir un host válido.')
+
+    def _join(base_parsed):
+        return f'{urlunparse(base_parsed).rstrip("/")}{path}'
+
+    urls = [_join(parsed)]
+
+    # Compatibilidad con despliegues del WS que exponen API en puertos alternos.
+    if parsed.port is None and parsed.hostname:
+        for port in (3000, 8080):
+            host = parsed.hostname
+            if ':' in host and not host.startswith('['):
+                host = f'[{host}]'
+
+            auth = ''
+            if parsed.username:
+                auth = parsed.username
+                if parsed.password:
+                    auth += f':{parsed.password}'
+                auth = f'{auth}@'
+
+            alternate = parsed._replace(netloc=f'{auth}{host}:{port}')
+            url = _join(alternate)
+            if url not in urls:
+                urls.append(url)
+
+    return urls
 
 
 def _validate_positive_int(value, setting_name):
@@ -70,32 +100,46 @@ def construir_payload_asiento(orden, asiento_db, asiento_cr):
 
 
 def _post_json(path, payload):
-    url = _build_url(path)
     timeout = float(getattr(settings, 'WS_CONTABLE_TIMEOUT', 10))
+    last_error = None
 
-    req = request.Request(
-        url=url,
-        data=json.dumps(payload).encode('utf-8'),
-        headers={
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-        method='POST',
-    )
+    for url in _build_urls(path):
+        req = request.Request(
+            url=url,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            method='POST',
+        )
 
-    try:
-        with request.urlopen(req, timeout=timeout) as response:
-            body = response.read().decode('utf-8', errors='replace').strip()
-            if not body:
-                return {}
-            return json.loads(body)
-    except error.HTTPError as exc:
-        detail = exc.read().decode('utf-8', errors='replace').strip()
-        raise WsContableError(f'WS contable respondió HTTP {exc.code}: {detail[:500]}') from exc
-    except error.URLError as exc:
-        raise WsContableError(f'No se pudo conectar con WS contable: {exc.reason}') from exc
-    except json.JSONDecodeError as exc:
-        raise WsContableError('El WS contable respondió JSON inválido.') from exc
+        try:
+            with request.urlopen(req, timeout=timeout) as response:
+                body = response.read().decode('utf-8', errors='replace').strip()
+                if not body:
+                    return {}
+                return json.loads(body)
+        except error.HTTPError as exc:
+            detail = exc.read().decode('utf-8', errors='replace').strip()
+            raise WsContableError(f'WS contable respondió HTTP {exc.code}: {detail[:500]}') from exc
+        except error.URLError as exc:
+            last_error = WsContableError(
+                f'No se pudo conectar con WS contable en {url}: {exc.reason}'
+            )
+            continue
+        except TimeoutError as exc:
+            last_error = WsContableError(
+                f'No se pudo conectar con WS contable en {url}: timeout de red.'
+            )
+            continue
+        except json.JSONDecodeError as exc:
+            raise WsContableError('El WS contable respondió JSON inválido.') from exc
+
+    if last_error is not None:
+        raise last_error
+
+    raise WsContableError('No se pudo construir una URL válida para el WS contable.')
 
 
 def enviar_payload(payload):

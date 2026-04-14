@@ -96,7 +96,6 @@ MIDDLEWARE = [
     # servir archivos estáticos directamente desde el mismo proceso WSGI.
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'opencensus.ext.django.middleware.OpencensusMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -110,13 +109,24 @@ if not APPLICATIONINSIGHTS_CONNECTION_STRING:
     if instrumentation_key:
         APPLICATIONINSIGHTS_CONNECTION_STRING = f'InstrumentationKey={instrumentation_key}'
 
+if APPLICATIONINSIGHTS_CONNECTION_STRING:
+    opencensus_exporter = (
+        'opencensus.ext.azure.trace_exporter.AzureExporter('
+        f'connection_string={APPLICATIONINSIGHTS_CONNECTION_STRING!r})'
+    )
+else:
+    opencensus_exporter = 'opencensus.ext.azure.trace_exporter.AzureExporter()'
+
 # Application Insights - Instrumentación para telemetría en Azure
 OPENCENSUS = {
     'TRACE': {
         'SAMPLER': 'opencensus.trace.samplers.ProbabilitySampler(rate=1.0)',
-        'EXPORTER': 'opencensus.ext.azure.trace_exporter.AzureExporter(connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING)',
+        'EXPORTER': opencensus_exporter,
     },
 }
+
+if APPLICATIONINSIGHTS_CONNECTION_STRING:
+    MIDDLEWARE.insert(3, 'opencensus.ext.django.middleware.OpencensusMiddleware')
 
 ROOT_URLCONF = 'config.urls'
 
@@ -245,7 +255,7 @@ REST_FRAMEWORK = {
 
 # Integración con WS Contable
 WS_CONTABLE_ENABLED = env_bool('WS_CONTABLE_ENABLED', False)
-WS_CONTABLE_BASE_URL = os.environ.get('WS_CONTABLE_BASE_URL', 'http://151.242.194.24').strip()
+WS_CONTABLE_BASE_URL = os.environ.get('WS_CONTABLE_BASE_URL', 'http://151.242.194.24:3000').strip()
 WS_CONTABLE_TIMEOUT = float(os.environ.get('WS_CONTABLE_TIMEOUT', '10'))
 WS_CONTABLE_AUXILIAR_ID = int(os.environ.get('WS_CONTABLE_AUXILIAR_ID', '7'))
 WS_CONTABLE_CUENTA_DEBITO_ID = int(os.environ.get('WS_CONTABLE_CUENTA_DEBITO_ID', '2'))
