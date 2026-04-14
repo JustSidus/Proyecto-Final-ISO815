@@ -78,7 +78,7 @@
             </div>
             <div class="small text-muted">{{ o.proveedor.nombre_comercial|truncatechars:28 }}</div>
             <div class="small text-muted">{{ o.departamento.nombre }}</div>
-            <div class="small mt-1">Total: <strong>RD$ {{ o.total|floatformat:2 }}</strong></div>
+            <div class="small mt-1">Total: <strong>RD$ {{ o.total_monto|floatformat:2 }}</strong></div>
             <div class="d-flex justify-content-end gap-1 mt-auto pt-2">
               <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
               <a href="{% url 'compras:orden-update' o.pk %}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>
@@ -147,7 +147,7 @@
             </div>
             <div class="small text-muted">{{ o.proveedor.nombre_comercial|truncatechars:28 }}</div>
             <div class="small text-muted">{{ o.departamento.nombre }}</div>
-            <div class="small mt-1">Total: <strong>RD$ {{ o.total|floatformat:2 }}</strong></div>
+            <div class="small mt-1">Total: <strong>RD$ {{ o.total_monto|floatformat:2 }}</strong></div>
             <div class="d-flex justify-content-end gap-1 mt-auto pt-2">
               <a href="{% url 'compras:orden-detail' o.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
               <a href="{% url 'compras:orden-delete' o.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
@@ -384,9 +384,15 @@
   (function () {
     const transitionRules = {
       PE: ['AP', 'RE'],
-      AP: ['PE', 'RE', 'CO'],
-      RE: ['PE', 'AP'],
+      AP: ['RE', 'CO'],
+      RE: ['PE'],
       CO: []
+    };
+    const estadoUi = {
+      PE: { label: 'Pendiente', badgeClass: 'bg-warning text-dark', emptyText: 'Sin órdenes pendientes.', draggable: true },
+      AP: { label: 'Aprobada', badgeClass: 'bg-success', emptyText: 'Sin órdenes aprobadas.', draggable: true },
+      CO: { label: 'Completada', badgeClass: 'bg-primary', emptyText: 'Sin órdenes completadas.', draggable: false },
+      RE: { label: 'Rechazada', badgeClass: 'bg-danger', emptyText: 'Sin órdenes rechazadas.', draggable: true },
     };
     const autocompleteUrl = "{% url 'compras:orden-autocomplete' %}";
 
@@ -400,7 +406,80 @@
     const csrfToken = getCookie('csrftoken');
     let draggingCard = null;
 
-    async function cambiarEstadoOrden(orderId, nextState) {
+    function actualizarContadorColumna(zone, delta) {
+      if (!zone || !delta) return;
+      const header = zone.closest('.kanban-column')?.querySelector('.card-header');
+      if (!header) return;
+
+      const match = header.textContent.match(/\((\d+)\)/);
+      if (!match) return;
+
+      const actual = parseInt(match[1], 10);
+      const siguiente = Math.max(actual + delta, 0);
+      header.textContent = header.textContent.replace(/\(\d+\)/, `(${siguiente})`);
+    }
+
+    function normalizarColumnaVacia(zone) {
+      if (!zone) return;
+      const placeholderClass = 'js-empty-column';
+      const actual = zone.querySelector(`.${placeholderClass}`);
+      const tarjetas = zone.querySelectorAll('.kanban-card');
+
+      if (tarjetas.length === 0 && !actual) {
+        const empty = document.createElement('div');
+        empty.className = `text-muted small ${placeholderClass}`;
+        empty.textContent = estadoUi[zone.dataset.estado]?.emptyText || 'Sin órdenes.';
+        zone.appendChild(empty);
+      }
+
+      if (tarjetas.length > 0 && actual) {
+        actual.remove();
+      }
+    }
+
+    function actualizarVisualTarjeta(card, estado) {
+      const ui = estadoUi[estado];
+      if (!ui) return;
+
+      card.dataset.estado = estado;
+      card.setAttribute('draggable', ui.draggable ? 'true' : 'false');
+
+      const badge = card.querySelector('.badge');
+      if (badge) {
+        badge.className = `badge ${ui.badgeClass}`;
+        badge.textContent = ui.label;
+      }
+
+      if (estado !== 'PE') {
+        const editButton = card.querySelector('.btn-outline-warning');
+        if (editButton) {
+          editButton.remove();
+        }
+      }
+    }
+
+    function moverTarjetaKanban(card, estadoOrigen, estadoDestino) {
+      const zonaOrigen = document.querySelector(`.kanban-dropzone[data-estado="${estadoOrigen}"]`);
+      const zonaDestino = document.querySelector(`.kanban-dropzone[data-estado="${estadoDestino}"]`);
+      if (!card || !zonaDestino) {
+        return false;
+      }
+
+      zonaDestino.appendChild(card);
+      actualizarVisualTarjeta(card, estadoDestino);
+
+      if (zonaOrigen !== zonaDestino) {
+        actualizarContadorColumna(zonaOrigen, -1);
+        actualizarContadorColumna(zonaDestino, 1);
+      }
+
+      normalizarColumnaVacia(zonaOrigen);
+      normalizarColumnaVacia(zonaDestino);
+      return true;
+    }
+
+    async function cambiarEstadoOrden(orderId, nextState, options = {}) {
+      const reloadOnSuccess = options.reloadOnSuccess ?? true;
       try {
         const response = await fetch(`/ordenes/${orderId}/estado/`, {
           method: 'POST',
@@ -414,14 +493,17 @@
         const payload = await response.json();
         if (!response.ok || !payload.ok) {
           alert(payload.error || 'No se pudo cambiar el estado.');
-          return false;
+          return null;
         }
 
-        window.location.reload();
-        return true;
+        if (reloadOnSuccess) {
+          window.location.reload();
+        }
+
+        return payload;
       } catch (error) {
         alert('Error de red al actualizar estado.');
-        return false;
+        return null;
       }
     }
 
@@ -453,8 +535,9 @@
 
         if (!draggingCard) return;
 
-        const orderId = draggingCard.dataset.ordenId;
-        const currentState = draggingCard.dataset.estado;
+        const card = draggingCard;
+        const orderId = card.dataset.ordenId;
+        const currentState = card.dataset.estado;
         const nextState = zone.dataset.estado;
 
         if (!orderId || !currentState || !nextState || currentState === nextState) {
@@ -466,7 +549,23 @@
           return;
         }
 
-        await cambiarEstadoOrden(orderId, nextState);
+        if (!moverTarjetaKanban(card, currentState, nextState)) {
+          return;
+        }
+
+        card.classList.add('opacity-75');
+        const payload = await cambiarEstadoOrden(orderId, nextState, { reloadOnSuccess: false });
+        card.classList.remove('opacity-75');
+
+        if (!payload) {
+          moverTarjetaKanban(card, nextState, currentState);
+          return;
+        }
+
+        const estadoConfirmado = payload.estado || nextState;
+        if (estadoConfirmado !== nextState) {
+          moverTarjetaKanban(card, nextState, estadoConfirmado);
+        }
       });
     });
 
@@ -524,6 +623,8 @@
         window.location.href = url.toString();
       });
     }
+
+    document.querySelectorAll('.kanban-dropzone').forEach(normalizarColumnaVacia);
   })();
 </script>
 {% endblock %}

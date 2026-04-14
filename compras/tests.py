@@ -260,6 +260,69 @@ class KanbanArchivadasContextTests(TestCase):
 		self.assertEqual(len(response.context['ordenes_rechazadas_archivadas']), 2)
 
 
+class OrdenCompraAutocompleteTests(TestCase):
+	def setUp(self):
+		self.usuario = User.objects.create_user(username='auto-user', password='clave-segura')
+		self.client.login(username='auto-user', password='clave-segura')
+
+		self.departamento = Departamento.objects.create(nombre='Depto Autocomplete', estado=True)
+		self.unidad = UnidadMedida.objects.create(descripcion='Unidad', estado=True)
+		self.proveedor_auto = Proveedor.objects.create(
+			tipo_documento=Proveedor.TIPO_RNC,
+			cedula_rnc=construir_rnc_valido('20100000'),
+			nombre_comercial='Proveedor Auto',
+			estado=True,
+		)
+		self.proveedor_otro = Proveedor.objects.create(
+			tipo_documento=Proveedor.TIPO_RNC,
+			cedula_rnc=construir_rnc_valido('20100001'),
+			nombre_comercial='Proveedor Varios',
+			estado=True,
+		)
+
+	def _crear_orden(self, proveedor):
+		orden = OrdenCompra.objects.create(
+			proveedor=proveedor,
+			departamento=self.departamento,
+			estado=OrdenCompra.ESTADO_PENDIENTE,
+		)
+		OrdenCompraDetalle.objects.create(
+			orden=orden,
+			articulo=Articulo.objects.create(
+				descripcion=f'Articulo {orden.pk}',
+				marca='Marca',
+				unidad_medida=self.unidad,
+				existencia=100,
+				estado=True,
+			),
+			cantidad=1,
+			unidad_medida=self.unidad,
+			costo_unitario=10,
+		)
+		return orden
+
+	def test_autocomplete_prioriza_codigo_exacto(self):
+		for _ in range(8):
+			self._crear_orden(self.proveedor_auto)
+
+		response = self.client.get(reverse('compras:orden-autocomplete'), {'q': 'OC-00003'})
+
+		self.assertEqual(response.status_code, 200)
+		resultados = response.json()['results']
+		self.assertTrue(resultados)
+		self.assertEqual(resultados[0]['codigo'], 'OC-00003')
+
+	def test_autocomplete_limita_resultados_a_cinco(self):
+		for _ in range(12):
+			self._crear_orden(self.proveedor_otro)
+
+		response = self.client.get(reverse('compras:orden-autocomplete'), {'q': 'OC'})
+
+		self.assertEqual(response.status_code, 200)
+		resultados = response.json()['results']
+		self.assertEqual(len(resultados), 5)
+
+
 class IntegracionWsContablePayloadTests(TestCase):
 	def setUp(self):
 		self.departamento = Departamento.objects.create(nombre='Depto WS', estado=True)

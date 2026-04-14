@@ -47,6 +47,8 @@ def _bloquear_articulos(articulo_ids):
 
 
 def _aplicar_hold(articulos, cantidades):
+    actualizados = []
+
     for articulo_id, cantidad in cantidades.items():
         articulo = articulos[articulo_id]
         disponible = articulo.existencia - articulo.cantidad_retenida
@@ -59,17 +61,27 @@ def _aplicar_hold(articulos, cantidades):
     for articulo_id, cantidad in cantidades.items():
         articulo = articulos[articulo_id]
         articulo.cantidad_retenida += cantidad
-        articulo.save(update_fields=['cantidad_retenida'])
+        actualizados.append(articulo)
+
+    if actualizados:
+        Articulo.objects.bulk_update(actualizados, ['cantidad_retenida'])
 
 
 def _liberar_hold(articulos, cantidades):
+    actualizados = []
+
     for articulo_id, cantidad in cantidades.items():
         articulo = articulos[articulo_id]
         articulo.cantidad_retenida = max(articulo.cantidad_retenida - cantidad, 0)
-        articulo.save(update_fields=['cantidad_retenida'])
+        actualizados.append(articulo)
+
+    if actualizados:
+        Articulo.objects.bulk_update(actualizados, ['cantidad_retenida'])
 
 
 def _consumir_orden_aprobada(articulos, cantidades):
+    actualizados = []
+
     for articulo_id, cantidad in cantidades.items():
         articulo = articulos[articulo_id]
         if articulo.cantidad_retenida < cantidad:
@@ -85,7 +97,10 @@ def _consumir_orden_aprobada(articulos, cantidades):
         articulo = articulos[articulo_id]
         articulo.cantidad_retenida -= cantidad
         articulo.existencia -= cantidad
-        articulo.save(update_fields=['cantidad_retenida', 'existencia'])
+        actualizados.append(articulo)
+
+    if actualizados:
+        Articulo.objects.bulk_update(actualizados, ['cantidad_retenida', 'existencia'])
 
 
 def _monto_total_orden(orden):

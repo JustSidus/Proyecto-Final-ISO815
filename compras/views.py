@@ -5,6 +5,8 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import CharField, DecimalField, ExpressionWrapper, F, Q, Sum, Value
+from django.db.models.functions import Cast, Coalesce
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
@@ -83,6 +85,20 @@ def _transiciones_disponibles(estado_actual):
         for codigo in orden_preferido
         if codigo in destinos
     ]
+
+
+def _anotar_total_ordenes(queryset):
+    subtotal_expr = ExpressionWrapper(
+        F('detalles__cantidad') * F('detalles__costo_unitario'),
+        output_field=DecimalField(max_digits=14, decimal_places=2),
+    )
+    return queryset.annotate(
+        total_monto=Coalesce(
+            Sum(subtotal_expr),
+            Value(0),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        )
+    )
 
 
 # ── Inicio ────────────────────────────────────────────────────────────────────
@@ -291,10 +307,10 @@ class OrdenCompraListView(LoginRequiredMixin, ListView):
         queryset = (
             OrdenCompra.objects
             .select_related('proveedor', 'departamento')
-            .prefetch_related('detalles')
             .order_by('id')
         )
-        return _aplicar_filtros_ordenes(queryset, self.filtro_proveedor, self.filtro_orden)
+        queryset = _aplicar_filtros_ordenes(queryset, self.filtro_proveedor, self.filtro_orden)
+        return _anotar_total_ordenes(queryset)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -340,6 +356,7 @@ class OrdenCompraListView(LoginRequiredMixin, ListView):
 
 class OrdenCompraAutocompleteView(LoginRequiredMixin, View):
     max_resultados = 5
+    max_candidatos = 50
 
     def get(self, request):
         query = (request.GET.get('q') or '').strip().upper()
@@ -348,12 +365,25 @@ class OrdenCompraAutocompleteView(LoginRequiredMixin, View):
 
         digitos = ''.join(char for char in query if char.isdigit())
         numero_referencia = int(digitos) if digitos else None
+        digitos_normalizados = str(numero_referencia) if numero_referencia is not None else ''
 
-        candidatos = list(
+        queryset = (
             OrdenCompra.objects
             .select_related('proveedor')
+            .annotate(codigo_num=Cast('pk', output_field=CharField()))
             .order_by('id')
         )
+
+        if query in {'O', 'OC', 'OC-'}:
+            candidatos = list(queryset.order_by('-id')[: self.max_candidatos])
+        else:
+            filtros = Q(proveedor__nombre_comercial__icontains=query)
+            if digitos_normalizados:
+                filtros |= Q(codigo_num__startswith=digitos_normalizados) | Q(codigo_num__contains=digitos_normalizados)
+            candidatos = list(queryset.filter(filtros)[: self.max_candidatos])
+
+        if not candidatos:
+            return JsonResponse({'results': []})
 
         def puntaje(orden):
             codigo = f'OC-{orden.pk:05d}'
@@ -402,7 +432,6 @@ class OrdenCompraBacklogView(LoginRequiredMixin, ListView):
         queryset = (
             OrdenCompra.objects
             .select_related('proveedor', 'departamento')
-            .prefetch_related('detalles')
         )
         
         # Aplicar filtros básicos
@@ -589,6 +618,7 @@ class OrdenCompraCambiarEstadoView(LoginRequiredMixin, View):
             'ok': True,
             'estado': orden_actualizada.estado,
             'estado_display': orden_actualizada.get_estado_display(),
+            'transiciones_disponibles': _transiciones_disponibles(orden_actualizada.estado),
         })
 
 
